@@ -1,0 +1,5 @@
+restore_now:
+  name: Restore now
+  description: >-
+    Runs a restore pass immediately and writes back the real last_changed for all
+    currently fresh entities. Useful after adding new entities or for testing.

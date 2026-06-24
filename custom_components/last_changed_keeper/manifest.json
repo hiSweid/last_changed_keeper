@@ -1,0 +1,16 @@
+{
+  "domain": "last_changed_keeper",
+  "name": "Last Changed Keeper",
+  "after_dependencies": ["recorder"],
+  "codeowners": ["@hiSweid"],
+  "config_flow": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/hiSweid/last_changed_keeper",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/hiSweid/last_changed_keeper/issues",
+  "loggers": ["custom_components.last_changed_keeper"],
+  "quality_scale": "silver",
+  "single_config_entry": true,
+  "version": "0.5.5"
+}

@@ -1,0 +1,68 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Last Changed Keeper",
+        "description": "Restaura a hora real de «última alteração» das entidades selecionadas a partir do recorder após um reinício. Atua diretamente na própria entidade. A seleção atual abrange {count} entidades.",
+        "data": {
+          "domains": "Domínios",
+          "entities": "Entidades individuais adicionais",
+          "exclude": "Entidades excluídas",
+          "grace_seconds": "Aplicar apenas se last_changed for mais recente que (segundos)",
+          "restore_last_updated": "Restaurar também last_updated",
+          "retry_delays": "Atrasos de repetição em segundos (separados por vírgulas)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurar Last Changed Keeper",
+        "description": "Ajustar a seleção. A seleção atual abrange {count} entidades.",
+        "data": {
+          "domains": "Domínios",
+          "entities": "Entidades individuais adicionais",
+          "exclude": "Entidades excluídas",
+          "grace_seconds": "Aplicar apenas se last_changed for mais recente que (segundos)",
+          "restore_last_updated": "Restaurar também last_updated",
+          "retry_delays": "Atrasos de repetição em segundos (separados por vírgulas)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Selecione pelo menos um domínio ou uma entidade."
+    },
+    "abort": {
+      "already_configured": "Last Changed Keeper já está configurado.",
+      "single_instance_allowed": "Last Changed Keeper já está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last Changed Keeper – alterar seleção",
+        "description": "A seleção atual abrange {count} entidades.",
+        "data": {
+          "domains": "Domínios",
+          "entities": "Entidades individuais adicionais",
+          "exclude": "Entidades excluídas",
+          "grace_seconds": "Aplicar apenas se last_changed for mais recente que (segundos)",
+          "restore_last_updated": "Restaurar também last_updated",
+          "retry_delays": "Atrasos de repetição em segundos (separados por vírgulas)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Selecione pelo menos um domínio ou uma entidade."
+    }
+  },
+  "services": {
+    "restore_now": {
+      "name": "Restaurar agora",
+      "description": "Executa imediatamente uma passagem de restauro e reescreve o last_changed real de todas as entidades atualmente atualizadas."
+    }
+  },
+  "issues": {
+    "incompatible_state_cache": {
+      "title": "Last Changed Keeper: versão de HA incompatível",
+      "description": "A estrutura interna da cache de estado desta versão do Home Assistant não é reconhecida. last_changed é definido na mesma, mas o frontend pode mostrar brevemente o valor antigo. Verifique se há uma atualização da integração ou comunique um problema."
+    }
+  }
+}

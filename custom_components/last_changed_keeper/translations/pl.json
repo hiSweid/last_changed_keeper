@@ -1,0 +1,68 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Last Changed Keeper",
+        "description": "Po ponownym uruchomieniu przywraca rzeczywisty czas «ostatniej zmiany» wybranych encji z rejestratora (recorder). Działa bezpośrednio na samej encji. Bieżący wybór obejmuje {count} encji.",
+        "data": {
+          "domains": "Domeny",
+          "entities": "Dodatkowe pojedyncze encje",
+          "exclude": "Wykluczone encje",
+          "grace_seconds": "Aktualizuj tylko, jeśli last_changed jest młodsze niż (sekundy)",
+          "restore_last_updated": "Przywróć także last_updated",
+          "retry_delays": "Opóźnienia ponawiania w sekundach (oddzielone przecinkami)"
+        }
+      },
+      "reconfigure": {
+        "title": "Skonfiguruj ponownie Last Changed Keeper",
+        "description": "Dostosuj wybór. Bieżący wybór obejmuje {count} encji.",
+        "data": {
+          "domains": "Domeny",
+          "entities": "Dodatkowe pojedyncze encje",
+          "exclude": "Wykluczone encje",
+          "grace_seconds": "Aktualizuj tylko, jeśli last_changed jest młodsze niż (sekundy)",
+          "restore_last_updated": "Przywróć także last_updated",
+          "retry_delays": "Opóźnienia ponawiania w sekundach (oddzielone przecinkami)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Wybierz co najmniej jedną domenę lub jedną encję."
+    },
+    "abort": {
+      "already_configured": "Last Changed Keeper jest już skonfigurowany.",
+      "single_instance_allowed": "Last Changed Keeper jest już skonfigurowany."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last Changed Keeper – zmień wybór",
+        "description": "Bieżący wybór obejmuje {count} encji.",
+        "data": {
+          "domains": "Domeny",
+          "entities": "Dodatkowe pojedyncze encje",
+          "exclude": "Wykluczone encje",
+          "grace_seconds": "Aktualizuj tylko, jeśli last_changed jest młodsze niż (sekundy)",
+          "restore_last_updated": "Przywróć także last_updated",
+          "retry_delays": "Opóźnienia ponawiania w sekundach (oddzielone przecinkami)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Wybierz co najmniej jedną domenę lub jedną encję."
+    }
+  },
+  "services": {
+    "restore_now": {
+      "name": "Przywróć teraz",
+      "description": "Natychmiast wykonuje przebieg przywracania i ponownie zapisuje rzeczywiste last_changed dla wszystkich aktualnie świeżych encji."
+    }
+  },
+  "issues": {
+    "incompatible_state_cache": {
+      "title": "Last Changed Keeper: niezgodna wersja HA",
+      "description": "Wewnętrzna struktura pamięci podręcznej stanu w tej wersji Home Assistant nie jest rozpoznawana. last_changed jest mimo to ustawiane, ale frontend może przez chwilę pokazywać starą wartość. Sprawdź aktualizację integracji lub zgłoś problem."
+    }
+  }
+}

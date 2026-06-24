@@ -1,0 +1,68 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Last Changed Keeper",
+        "description": "Restores the real 'last changed' time of the selected entities from the recorder after a restart. Works directly on the entity itself. The current selection covers {count} entities.",
+        "data": {
+          "domains": "Domains",
+          "entities": "Additional individual entities",
+          "exclude": "Excluded entities",
+          "grace_seconds": "Only patch if last_changed is younger than (seconds)",
+          "restore_last_updated": "Also restore last_updated",
+          "retry_delays": "Retry delays in seconds (comma-separated)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Last Changed Keeper",
+        "description": "Adjust the selection. The current selection covers {count} entities.",
+        "data": {
+          "domains": "Domains",
+          "entities": "Additional individual entities",
+          "exclude": "Excluded entities",
+          "grace_seconds": "Only patch if last_changed is younger than (seconds)",
+          "restore_last_updated": "Also restore last_updated",
+          "retry_delays": "Retry delays in seconds (comma-separated)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Please select at least one domain or one entity."
+    },
+    "abort": {
+      "already_configured": "Last Changed Keeper is already configured.",
+      "single_instance_allowed": "Last Changed Keeper is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last Changed Keeper – change selection",
+        "description": "The current selection covers {count} entities.",
+        "data": {
+          "domains": "Domains",
+          "entities": "Additional individual entities",
+          "exclude": "Excluded entities",
+          "grace_seconds": "Only patch if last_changed is younger than (seconds)",
+          "restore_last_updated": "Also restore last_updated",
+          "retry_delays": "Retry delays in seconds (comma-separated)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Please select at least one domain or one entity."
+    }
+  },
+  "services": {
+    "restore_now": {
+      "name": "Restore now",
+      "description": "Runs a restore pass immediately and writes back the real last_changed for all currently fresh entities."
+    }
+  },
+  "issues": {
+    "incompatible_state_cache": {
+      "title": "Last Changed Keeper: incompatible HA version",
+      "description": "The internal state cache structure of this Home Assistant version is not recognised. last_changed is still set, but the frontend may briefly show the old value. Please check for an update of the integration or report an issue."
+    }
+  }
+}

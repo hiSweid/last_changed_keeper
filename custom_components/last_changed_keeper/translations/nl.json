@@ -1,0 +1,68 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Last Changed Keeper",
+        "description": "Herstelt na een herstart de echte 'laatst gewijzigd'-tijd van de geselecteerde entiteiten uit de recorder. Werkt rechtstreeks op de entiteit zelf. De huidige selectie omvat {count} entiteiten.",
+        "data": {
+          "domains": "Domeinen",
+          "entities": "Extra losse entiteiten",
+          "exclude": "Uitgesloten entiteiten",
+          "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
+          "restore_last_updated": "Ook last_updated herstellen",
+          "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
+        }
+      },
+      "reconfigure": {
+        "title": "Last Changed Keeper opnieuw configureren",
+        "description": "Pas de selectie aan. De huidige selectie omvat {count} entiteiten.",
+        "data": {
+          "domains": "Domeinen",
+          "entities": "Extra losse entiteiten",
+          "exclude": "Uitgesloten entiteiten",
+          "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
+          "restore_last_updated": "Ook last_updated herstellen",
+          "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Selecteer ten minste één domein of één entiteit."
+    },
+    "abort": {
+      "already_configured": "Last Changed Keeper is al geconfigureerd.",
+      "single_instance_allowed": "Last Changed Keeper is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last Changed Keeper – selectie wijzigen",
+        "description": "De huidige selectie omvat {count} entiteiten.",
+        "data": {
+          "domains": "Domeinen",
+          "entities": "Extra losse entiteiten",
+          "exclude": "Uitgesloten entiteiten",
+          "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
+          "restore_last_updated": "Ook last_updated herstellen",
+          "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Selecteer ten minste één domein of één entiteit."
+    }
+  },
+  "services": {
+    "restore_now": {
+      "name": "Nu herstellen",
+      "description": "Voert direct een herstelronde uit en schrijft de echte last_changed terug voor alle momenteel verse entiteiten."
+    }
+  },
+  "issues": {
+    "incompatible_state_cache": {
+      "title": "Last Changed Keeper: incompatibele HA-versie",
+      "description": "De interne state-cachestructuur van deze Home Assistant-versie wordt niet herkend. last_changed wordt wel ingesteld, maar de frontend toont mogelijk kort de oude waarde. Controleer op een update van de integratie of meld een probleem."
+    }
+  }
+}
