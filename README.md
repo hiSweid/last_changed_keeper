@@ -9,6 +9,19 @@ Home Assistant integration that restores the **real "last changed"** time
 (`last_changed`) of selected entities after a restart — directly on the entity,
 without extra sensors.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/entity-last-changed.png" alt="Entity more-info dialog showing the real last changed" width="380">
+  <img src="docs/config-options.png" alt="Last Changed Keeper configuration dialog" width="380">
+</p>
+
+Left: a light that has been on for over a week still shows its real "last
+changed" after a restart (here in German: *Letzte Woche* = last week) instead of
+a few seconds. Right: the configuration dialog — pick domains and entities, an
+exclude list, the grace window, optionally restore `last_updated`, and the retry
+delays. (Screenshots from a German Home Assistant.)
+
 ## Problem
 
 After a Home Assistant restart, the native `last_changed` of many entities shows
