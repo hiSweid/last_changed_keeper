@@ -78,13 +78,6 @@ adding new entities).
   access fails, nothing is overwritten and a repair issue is raised — no crash.
 - Read-only towards the recorder; nothing is changed there persistently.
 
-## Branding
-
-App icon and logo live under
-`custom_components/last_changed_keeper/brand/`. To make them show up everywhere
-in Home Assistant, a separate pull request to
-[home-assistant/brands](https://github.com/home-assistant/brands) is required.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
