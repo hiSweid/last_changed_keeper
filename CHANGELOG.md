@@ -2,6 +2,14 @@
 
 All notable changes. Loosely based on [Keep a Changelog].
 
+## [0.5.6] — 2026-06-24
+### Changed
+- Options flow modernized to the new pattern (no `config_entry` passed to the
+  constructor; uses the built-in `self.config_entry`) — avoids the API removed in
+  HA 2025.12.
+- Config flow now uses `ConfigFlowResult` instead of the deprecated `FlowResult`.
+- Minimum Home Assistant version raised to 2024.11.
+
 ## [0.5.5] — 2026-06-24
 ### Added
 - Brand icons (logo + app icon, @1x/@2x) under

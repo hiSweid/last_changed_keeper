@@ -2,8 +2,8 @@
 
 [![Validate](https://github.com/hiSweid/last_changed_keeper/actions/workflows/validate.yml/badge.svg)](https://github.com/hiSweid/last_changed_keeper/actions/workflows/validate.yml)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
-![Version](https://img.shields.io/badge/version-0.5.5-blue.svg)
-![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.4%2B-blue.svg)
+![Version](https://img.shields.io/badge/version-0.5.6-blue.svg)
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.11%2B-blue.svg)
 
 Home Assistant integration that restores the **real "last changed"** time
 (`last_changed`) of selected entities after a restart — directly on the entity,

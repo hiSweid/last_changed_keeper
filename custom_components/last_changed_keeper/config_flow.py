@@ -8,10 +8,10 @@ import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
+    ConfigFlowResult,
     OptionsFlow,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
@@ -108,7 +108,7 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
 
@@ -137,7 +137,7 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Reconfigure an existing setup (without deleting / re-adding it)."""
         entry = self._get_reconfigure_entry()
 
@@ -167,18 +167,15 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
-        return LastChangedKeeperOptionsFlow(config_entry)
+        return LastChangedKeeperOptionsFlow()
 
 
 class LastChangedKeeperOptionsFlow(OptionsFlow):
     """Change the selection later on."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        self._entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             if _is_empty(user_input):
@@ -187,7 +184,7 @@ class LastChangedKeeperOptionsFlow(OptionsFlow):
                 return self.async_create_entry(title="", data=user_input)
             defaults = user_input
         else:
-            defaults = {**self._entry.data, **self._entry.options}
+            defaults = {**self.config_entry.data, **self.config_entry.options}
 
         count = _count_targets(
             self.hass,

@@ -12,5 +12,5 @@
   "loggers": ["custom_components.last_changed_keeper"],
   "quality_scale": "silver",
   "single_config_entry": true,
-  "version": "0.5.5"
+  "version": "0.5.6"
 }
