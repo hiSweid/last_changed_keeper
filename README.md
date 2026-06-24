@@ -5,91 +5,49 @@
 ![Version](https://img.shields.io/badge/version-0.5.6-blue.svg)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.11%2B-blue.svg)
 
-Home Assistant integration that restores the **real "last changed"** time
-(`last_changed`) of selected entities after a restart — directly on the entity,
-without extra sensors.
+Keeps the **real "last changed"** time of your entities after a Home Assistant
+restart. Normally `last_changed` jumps to the restart time ("2 seconds ago"
+instead of "17 minutes ago"); this integration restores the true time from the
+recorder — directly on the entity, no extra sensors.
 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/entity-last-changed.png" alt="Entity more-info dialog showing the real last changed" width="380">
-  <img src="docs/config-options.png" alt="Last Changed Keeper configuration dialog" width="380">
+  <img src="docs/entity-last-changed.png" alt="Entity showing the real last changed" width="380">
+  <img src="docs/config-options.png" alt="Configuration dialog" width="380">
 </p>
 
-Left: a light that has been on for over a week still shows its real "last
-changed" after a restart (here in German: *Letzte Woche* = last week) instead of
-a few seconds. Right: the configuration dialog — pick domains and entities, an
-exclude list, the grace window, optionally restore `last_updated`, and the retry
-delays. (Screenshots from a German Home Assistant.)
+A light on for over a week still shows *Letzte Woche* (last week) after a
+restart, and the config dialog where you pick what to keep. *(German UI.)*
 
-## Problem
+## How it works
 
-After a Home Assistant restart, the native `last_changed` of many entities shows
-the restart time instead of the real last usage ("2 seconds ago" instead of
-"17 minutes ago"). Reasons: integrations write a fresh state on startup, and
-devices (Zigbee/Z-Wave) go through `unavailable → on/off`.
-
-## Solution
-
-On startup the integration determines when the current value really began and
-writes that time back into the live state object. Sources, in order:
-
-1. **Recorder bulk query** — a single query for all entities (fast).
-2. **Recorder per-entity query** (deeper) as a fallback for ambiguous cases.
-3. **Snapshot store** — written on the last shutdown; covers entities the
-   recorder no longer has (recorder exclude, short `purge`).
-
-Restart artifacts (`unavailable`/`unknown`) are skipped.
-
-To also catch late-booting devices, this runs in several stages:
-
-1. **Immediately** on `homeassistant_started` for already-available entities.
-2. **State listener** for devices that return from `unavailable` afterwards.
-3. **Delayed re-runs** (+30 s, +90 s, +180 s) for multi-step boot sequences
-   (`unavailable → off → on`).
-
-An entity is only touched while its `last_changed` is younger than the grace
-window (default 1800 s) — so real usage shortly after boot is never overwritten.
-
-## Performance
-
-Practically zero in normal operation: after startup the listeners and timers are
-torn down again, there are no sensors, no polling, no recorder writes. The only
-cost is a short burst at startup (one bulk query + a few per-entity fallbacks)
-and a single snapshot write on shutdown.
+On startup it reads the real start of each entity's current value from the
+recorder (snapshot fallback for purged entities) and writes it back, skipping
+restart artifacts (`unavailable`/`unknown`). Late-booting Zigbee/Z-Wave devices
+are caught by a state listener and re-runs at +30/90/180 s. An entity is only
+touched while it's "fresh" (grace, default 1800 s), so real usage isn't
+overwritten. Cost is near zero: a short burst at boot, then idle.
 
 ## Installation (HACS)
 
-1. HACS → Integrations → ⋮ → *Custom repositories* → add this repo URL,
-   category *Integration*.
-2. Install "Last Changed Keeper", restart Home Assistant.
+1. HACS → Integrations → ⋮ → *Custom repositories* → this repo, category
+   *Integration*.
+2. Install, restart Home Assistant.
 3. *Settings → Devices & Services → Add Integration* → "Last Changed Keeper".
 
-## Configuration (GUI)
+## Configuration
 
-- **Domains** – all entities of these domains (default: light, switch, cover,
-  fan, climate, lock, media_player, input_boolean, humidifier, vacuum).
-- **Additional individual entities**.
-- **Excluded entities** – drop individual entities from the selected domains.
-- **Grace** – maximum age of `last_changed` above which it is no longer patched.
-- **Also restore last_updated** – optionally restore `last_updated` too.
-- **Retry delays** – comma-separated seconds for the delayed re-runs.
+Pick **domains** and/or single **entities**, an optional **exclude** list, the
+**grace** window, an optional **restore `last_updated`** toggle, and the
+**retry delays**. Change it anytime via *Configure*/*Reconfigure*. Service
+`last_changed_keeper.restore_now` runs a pass on demand.
 
-Everything can be changed later via *Configure* or *Reconfigure*.
+## Notes
 
-## Service
-
-`last_changed_keeper.restore_now` – runs a restore pass immediately (e.g. after
-adding new entities).
-
-## Compatibility & notes
-
-- Tested with Home Assistant 2026.6.
-- The integration sets `last_changed` directly on the state object and
-  invalidates its cache (internal HA structure; there is no official API for
-  historical `last_changed`). All accesses are defensively guarded: if the cache
-  access fails, nothing is overwritten and a repair issue is raised — no crash.
-- Read-only towards the recorder; nothing is changed there persistently.
+Sets `last_changed` directly on the state object (no official API exists for
+historical values); guarded defensively — on incompatibility it raises a repair
+issue instead of crashing. Read-only towards the recorder.
 
 ## License
 
