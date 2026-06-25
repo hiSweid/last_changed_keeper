@@ -2,6 +2,11 @@
 
 All notable changes. Loosely based on [Keep a Changelog].
 
+## [0.5.7] — 2026-06-25
+### Fixed
+- CI: pytest could not import `custom_components` (repo root not on `sys.path`).
+  Added `pyproject.toml` with `pythonpath = ["."]`.
+
 ## [0.5.6] — 2026-06-24
 ### Changed
 - Options flow modernized to the new pattern (no `config_entry` passed to the
