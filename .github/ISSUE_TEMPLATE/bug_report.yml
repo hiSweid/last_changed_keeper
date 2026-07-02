@@ -1,0 +1,56 @@
+name: Bug report
+description: Report a problem with Last Changed Keeper
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug report!
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.6.3"
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Last Changed Keeper version
+      placeholder: "0.5.7"
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Restart Home Assistant
+        2. Check last_changed of entity X
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: entity
+    attributes:
+      label: Affected entity/entities
+      description: entity_id(s), and what the wrong vs. expected last_changed was.
+      placeholder: "light.flur_eingang: shows '2 seconds ago', should show 'last week'"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: From Settings → System → Logs (filter for last_changed_keeper). Include any repair issue text if one was raised.
+      render: text
+  - type: textarea
+    id: options
+    attributes:
+      label: Integration options
+      description: Which domains/entities are selected, exclude list, grace window, restore last_updated, retry delays?
+      render: text

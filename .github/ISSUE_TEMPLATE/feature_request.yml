@@ -1,0 +1,28 @@
+name: Feature request / translation fix
+description: Suggest a new feature, default-domain addition, or report a wrong translation
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Request type
+      options:
+        - New feature / option
+        - Add a domain to the default selection
+        - Wrong or missing translation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: language
+    attributes:
+      label: Language (if a translation issue)
+      description: One of de/en/fr/es/nl/it/pt/pl.
+      placeholder: "de"
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What should change, and why?
+    validations:
+      required: true
