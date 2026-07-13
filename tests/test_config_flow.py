@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.last_changed_keeper.config_flow import (
+    _build_schema,
     _count_targets,
     _is_empty,
 )
@@ -17,6 +18,7 @@ from custom_components.last_changed_keeper.const import (
     CONF_DOMAINS,
     CONF_ENTITIES,
     CONF_EXCLUDE,
+    CONF_GRACE,
     DOMAIN,
 )
 
@@ -190,3 +192,68 @@ async def test_options_flow_empty_selection_shows_error(
     )
     assert result2["type"] == FlowResultType.FORM
     assert result2["errors"] == {"base": "empty_selection"}
+
+
+# ----- Regression: reconfigure must not be shadowed by stale options -------
+
+
+async def test_reconfigure_after_options_flow_actually_takes_effect(
+    recorder_mock, enable_custom_integrations, hass: HomeAssistant
+) -> None:
+    """Regression: the options flow writes the full form into entry.options;
+    every runtime read merges {**entry.data, **entry.options} with options
+    last. Reconfigure must clear stale options, or it becomes a silent
+    no-op after the first options-flow save."""
+    hass.states.async_set("light.kitchen", "on")
+    hass.states.async_set("switch.fan", "on")
+    created = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    entry_result = await hass.config_entries.flow.async_configure(
+        created["flow_id"], {CONF_DOMAINS: ["light"], CONF_ENTITIES: []}
+    )
+    entry = hass.config_entries.async_get_entry(entry_result["result"].entry_id)
+
+    # Save via the options flow -> entry.options now holds every key.
+    opt_init = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        opt_init["flow_id"], {CONF_DOMAINS: ["light"], CONF_ENTITIES: [], CONF_GRACE: 900}
+    )
+    assert entry.options[CONF_GRACE] == 900
+
+    # Reconfigure with a different value.
+    reconf = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={
+            "source": config_entries.SOURCE_RECONFIGURE,
+            "entry_id": entry.entry_id,
+        },
+    )
+    result = await hass.config_entries.flow.async_configure(
+        reconf["flow_id"],
+        {CONF_DOMAINS: ["switch"], CONF_ENTITIES: [], CONF_GRACE: 300},
+    )
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+
+    merged = {**entry.data, **entry.options}
+    assert merged[CONF_GRACE] == 300
+    assert merged[CONF_DOMAINS] == ["switch"]
+    assert entry.options == {}
+
+
+# ----- Regression: a stored domain without live states stays selectable ----
+
+
+async def test_build_schema_includes_stored_domain_without_live_states(
+    hass: HomeAssistant,
+) -> None:
+    """A domain saved earlier but with zero current live states (e.g. its
+    integration is temporarily disabled) must remain a valid dropdown
+    option, or resubmitting the form fails validation / drops it."""
+    schema = _build_schema(hass, {CONF_DOMAINS: ["valve"]})
+    for key, validator in schema.schema.items():
+        if str(key) == CONF_DOMAINS:
+            assert "valve" in validator.config["options"]
+            return
+    raise AssertionError("domains field not found in schema")

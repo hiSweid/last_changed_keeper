@@ -176,13 +176,7 @@ class _RestoreJob:
         entities: list[str],
         exclude: list[str] | None = None,
     ) -> set[str]:
-        out: set[str] = set(entities or [])
-        if domains:
-            for state in self.hass.states.async_all():
-                if state.domain in domains:
-                    out.add(state.entity_id)
-        out -= set(exclude or [])
-        return out
+        return resolve_targets(self.hass, domains, entities, exclude)
 
     # ----- Lifecycle -----------------------------------------------------
 
@@ -203,13 +197,19 @@ class _RestoreJob:
     # ----- Snapshot ------------------------------------------------------
 
     async def async_write_snapshot(self, _event: Event | None = None) -> None:
-        """Persist the current last_changed values of all targets."""
+        """Persist the current state + last_changed of all targets.
+
+        The state value is stored alongside the timestamp so a snapshot can
+        only be applied if the entity still holds the same value on the next
+        boot (see _resolve) — otherwise it could stamp the *previous* value's
+        last_changed onto a genuinely new value.
+        """
         domains, entities, exclude, _ = self._config
-        data: dict[str, str] = {}
+        data: dict[str, dict[str, str]] = {}
         for entity_id in self._targets(domains, entities, exclude):
             live = self.hass.states.get(entity_id)
             if live is not None and live.state not in INVALID_STATES:
-                data[entity_id] = live.last_changed.isoformat()
+                data[entity_id] = {"s": live.state, "t": live.last_changed.isoformat()}
         await self._store.async_save(data)
         _LOGGER.debug("Wrote snapshot with %d entries", len(data))
 
@@ -225,6 +225,15 @@ class _RestoreJob:
 
     async def _async_run_impl(self, *, single_pass: bool = False) -> int:
         """Initial pass (with bulk query). Sets up listener + re-runs."""
+        if single_pass and self._pending:
+            # A boot pass is still active (listener + retry timers running
+            # for entities that came back late). Do an immediate one-off
+            # attempt on the currently pending entities WITHOUT touching
+            # that machinery — resetting it here (see below) would silently
+            # orphan every entity still pending for the rest of the grace
+            # window.
+            return await self._immediate_pending_pass()
+
         self.shutdown()
         self._degraded = False
         self._also_updated = self._restore_last_updated_enabled
@@ -251,9 +260,16 @@ class _RestoreJob:
 
         patched = 0
         for entity_id in candidates:
+            # Re-validate: the bulk query above awaited the recorder executor,
+            # during which this entity may have gone unavailable or genuinely
+            # changed for real — either way the state captured before the
+            # await is stale and must not be trusted anymore.
             live = self.hass.states.get(entity_id)
-            if live is None:
+            if live is None or live.state in INVALID_STATES:
+                self._pending.add(entity_id)
                 continue
+            if (dt_util.utcnow() - live.last_changed).total_seconds() > grace:
+                continue  # changed for real while we were awaiting the query
             ts = await self._resolve(entity_id, live, bulk.get(entity_id))
             if ts is not None:
                 self._apply(live, ts, entity_id)
@@ -329,6 +345,23 @@ class _RestoreJob:
     async def _retry_pass(self, delay: int, grace: float) -> None:
         if not self._pending:
             return
+        run_patched = await self._patch_all_pending(grace)
+        _LOGGER.info(
+            "Last Changed Keeper: re-run +%ds — %d patched, %d pending",
+            delay, run_patched, len(self._pending),
+        )
+
+    async def _immediate_pending_pass(self) -> int:
+        """Service-triggered pass over the currently pending set, in place."""
+        _, _, _, grace = self._config
+        run_patched = await self._patch_all_pending(grace)
+        _LOGGER.info(
+            "Last Changed Keeper: manual pass — %d patched, %d pending",
+            run_patched, len(self._pending),
+        )
+        return run_patched
+
+    async def _patch_all_pending(self, grace: float) -> int:
         run_patched = 0
         for entity_id in list(self._pending):
             if await self._patch_pending(entity_id, grace):
@@ -337,11 +370,7 @@ class _RestoreJob:
             int(self.stats.get("patched_total", 0)) + run_patched
         )
         self.stats["pending"] = len(self._pending)
-        _LOGGER.info(
-            "Last Changed Keeper: re-run +%ds — %d patched, %d pending",
-            delay, run_patched, len(self._pending),
-        )
-        self._cleanup_if_done()
+        return run_patched
 
     async def _patch_pending(self, entity_id: str, grace: float) -> bool:
         live = self.hass.states.get(entity_id)
@@ -378,13 +407,20 @@ class _RestoreJob:
         bulk_ts: datetime | None = None
         if bulk_states is not None:
             bulk_ts, bounded = _real_last_changed(bulk_states, live.state)
-            if bounded and _ok(bulk_ts):
-                return bulk_ts
+            if bounded:
+                # A bounded run start is definitive: the recorder proves the
+                # value genuinely changed at run_start. If that's not old
+                # enough to clear the margin, the value just changed for
+                # real — no other (older/staler) source may override it.
+                return bulk_ts if _ok(bulk_ts) else None
 
-        # 2. Snapshot (free, in memory, authoritative) — before the costly query
-        snap_raw = self._snapshot.get(entity_id)
-        if snap_raw:
-            snap_dt = dt_util.parse_datetime(snap_raw)
+        # 2. Snapshot (free, in memory, authoritative) — before the costly
+        # query. Only usable if the entity still holds the SAME value as at
+        # the last clean shutdown; otherwise the stored timestamp belongs to
+        # a different (often the opposite) value and would be a wrong patch.
+        snap = self._snapshot.get(entity_id)
+        if isinstance(snap, dict) and snap.get("s") == live.state:
+            snap_dt = dt_util.parse_datetime(snap.get("t", ""))
             if _ok(snap_dt):
                 return snap_dt
 
@@ -398,12 +434,16 @@ class _RestoreJob:
             _LOGGER.debug("Recorder query for %s failed: %s", entity_id, err)
             deep_states = []
         ts2, bounded2 = _real_last_changed(deep_states, live.state)
-        if bounded2 and _ok(ts2):
-            return ts2
+        if bounded2:
+            return ts2 if _ok(ts2) else None
 
-        # 4. Best effort from an unbounded run (deep query first, bulk as
-        # a cheap fallback if the deep query errored or was inconclusive).
-        if _ok(ts2):
+        # 4. Best effort from an unbounded run (deep query first, bulk as a
+        # cheap fallback). If the deep query's row window was exhausted by
+        # HISTORY_DEPTH rather than by reaching an older value (frequent on
+        # attribute-noisy domains like climate/humidifier), run_start is only
+        # "oldest of the last N rows", not the true start — too unreliable to
+        # use, so it is discarded rather than applied.
+        if _ok(ts2) and len(deep_states) < HISTORY_DEPTH:
             return ts2
         if _ok(bulk_ts):
             return bulk_ts
@@ -435,6 +475,26 @@ class _RestoreJob:
                 translation_key=ISSUE_INCOMPATIBLE,
             )
         _LOGGER.debug("%s: last_changed -> %s", entity_id, ts.isoformat())
+
+
+def resolve_targets(
+    hass: HomeAssistant,
+    domains: list[str] | None,
+    entities: list[str] | None,
+    exclude: list[str] | None = None,
+) -> set[str]:
+    """Explicit entities plus all states of the selected domains, minus exclude.
+
+    Shared between _RestoreJob (what actually gets patched) and config_flow
+    (the live count / empty-selection check) so both can never disagree.
+    """
+    out: set[str] = set(entities or [])
+    if domains:
+        for state in hass.states.async_all():
+            if state.domain in domains:
+                out.add(state.entity_id)
+    out -= set(exclude or [])
+    return out
 
 
 def _bulk_query(hass: HomeAssistant, start: datetime, entity_ids: list[str]) -> dict:

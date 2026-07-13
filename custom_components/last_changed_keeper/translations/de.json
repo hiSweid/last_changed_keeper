@@ -31,7 +31,8 @@
     },
     "abort": {
       "already_configured": "Last Changed Keeper ist bereits eingerichtet.",
-      "single_instance_allowed": "Last Changed Keeper ist bereits eingerichtet."
+      "single_instance_allowed": "Last Changed Keeper ist bereits eingerichtet.",
+      "reconfigure_successful": "Die Neukonfiguration war erfolgreich."
     }
   },
   "options": {

@@ -2,6 +2,7 @@ name: Validate
 
 on:
   push:
+    branches: [main]
   pull_request:
   schedule:
     - cron: "37 4 * * *"
@@ -33,6 +34,6 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install test dependencies
-        run: pip install pytest pytest-homeassistant-custom-component
+        run: pip install pytest -r requirements_test.txt
       - name: Run tests
         run: pytest -q

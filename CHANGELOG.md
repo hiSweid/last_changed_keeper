@@ -1,6 +1,72 @@
 # Changelog — Last Changed Keeper
 
-All notable changes. Loosely based on [Keep a Changelog].
+All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [0.5.9] — 2026-07-13
+### Fixed
+- **Snapshot could stamp the wrong value's timestamp.** The snapshot written
+  at shutdown stored only a timestamp, not the state value it belonged to.
+  If an entity's value genuinely changed while Home Assistant was down (or
+  crashed instead of shutting down cleanly), the fallback chain could apply
+  the *previous* value's last-changed time to the *new* value. The snapshot
+  now stores the state value alongside the timestamp and is only used when
+  the entity still holds that exact value; the old timestamp-only format is
+  discarded gracefully. Related: a bounded recorder result that fails the
+  freshness margin (the value provably *just* changed) now returns `None`
+  immediately instead of falling through to a stale snapshot or deep query.
+- **`restore_now` could permanently orphan pending entities.** Calling the
+  service while the boot-time retry pass was still active (listener +
+  30/90/180s timers waiting on late-booting devices) reset that machinery,
+  silently abandoning every entity still pending for the rest of the grace
+  window. The service now runs an in-place pass over the currently pending
+  entities instead of tearing down and resetting the job state.
+- **Deep per-entity fallback could return a wildly-too-recent timestamp** on
+  attribute-noisy domains (`climate`, `humidifier`: frequent
+  attribute-only updates with the same state value can fill the entire
+  100-row query window). That best-effort result is now discarded when the
+  row window was exhausted by the row-count limit rather than by reaching
+  an actual older value.
+- **Live state could go stale across the bulk-query await.** Between
+  building the candidate list and awaiting the recorder bulk query,
+  seconds can pass on a busy boot. Each candidate's state is now
+  re-validated (unavailable / genuinely-just-changed) right before
+  resolving and patching it.
+- Config/reconfigure/options flow: reconfiguring after ever having used the
+  options dialog was a silent no-op — the options flow writes the full form
+  into `entry.options`, which always wins the `{**data, **options}` merge
+  every runtime read uses. Reconfigure now clears `entry.options` on save.
+- A domain saved earlier but with zero current live states (its integration
+  temporarily disabled/broken) is now kept selectable in the dropdown
+  instead of failing validation or being silently dropped on the next save.
+- Missing `reconfigure_successful` translation: every successful
+  reconfigure showed the raw, untranslated abort key. Added in all 8
+  languages.
+### Changed
+- Target-resolution logic (`domains ∪ entities − exclude`) was duplicated
+  between the restore job and the config flow's live-count/empty check;
+  extracted into a single shared `resolve_targets()`.
+- Diagnostics now dump the full merged config instead of a hand-picked
+  subset that omitted `exclude`, `retry_delays` and `restore_last_updated`
+  — exactly the settings needed to debug "why wasn't entity X restored".
+- `manifest.json`: dropped the redundant `after_dependencies: [recorder]`
+  (already covered by `dependencies`).
+- `services.yaml`: removed a description sentence that had drifted from
+  (and was never shown instead of) the translated service description.
+- CI: pinned test dependencies via `requirements_test.txt` instead of
+  always installing latest; restricted the `push` trigger to `main` so PRs
+  no longer run every job twice.
+### Docs
+- README: fixed the stale version badge (now a dynamic GitHub-release
+  badge) and added a "Known limitations" section (recorder required,
+  post-boot entities, changes made while HA was off, 30-day bulk lookback).
+- Fixed a broken reference-style Markdown link in this changelog.
+- Removed the deprecated `render_readme` key from `hacs.json`.
+### Tests
+- Added `tests/test_resolve.py` (snapshot state-value matching, the
+  bounded-but-not-ok short-circuit, the exhausted-history-window guard),
+  `tests/test_restore_job_lifecycle.py` (the `restore_now` /
+  active-retry-machinery regression), and two more `test_config_flow.py`
+  cases (reconfigure-after-options regression, domain-dropdown-union).
 
 ## [0.5.8] — 2026-07-12
 ### Fixed

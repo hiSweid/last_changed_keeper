@@ -16,7 +16,7 @@ body:
     id: integration_version
     attributes:
       label: Last Changed Keeper version
-      placeholder: "0.5.7"
+      placeholder: "see HACS or the integration page, e.g. 0.5.8"
     validations:
       required: true
   - type: textarea

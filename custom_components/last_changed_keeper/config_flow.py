@@ -14,6 +14,7 @@ from homeassistant.config_entries import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 
+from . import resolve_targets
 from .const import (
     CONF_DOMAINS,
     CONF_ENTITIES,
@@ -32,8 +33,14 @@ _DEFAULT_RETRY_DELAYS_STR = ", ".join(str(d) for d in RETRY_DELAYS)
 
 
 def _build_schema(hass: HomeAssistant, defaults: dict[str, Any]) -> vol.Schema:
+    # Union in the already-stored selection too: a domain that was picked
+    # earlier but currently has zero live states (integration disabled/
+    # temporarily broken) must stay selectable, or re-saving the form after
+    # an unrelated change would fail validation / silently drop it.
     domain_options = sorted(
-        {s.domain for s in hass.states.async_all()} | set(DEFAULT_DOMAINS)
+        {s.domain for s in hass.states.async_all()}
+        | set(DEFAULT_DOMAINS)
+        | set(defaults.get(CONF_DOMAINS) or [])
     )
     return vol.Schema(
         {
@@ -87,14 +94,7 @@ def _count_targets(
     exclude: list[str] | None = None,
 ) -> int:
     """Number of entities affected by the selection (for the live count)."""
-    out: set[str] = set(entities or [])
-    selected = set(domains or [])
-    if selected:
-        for state in hass.states.async_all():
-            if state.domain in selected:
-                out.add(state.entity_id)
-    out -= set(exclude or [])
-    return len(out)
+    return len(resolve_targets(hass, domains, entities, exclude))
 
 
 def _is_empty(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
@@ -155,7 +155,15 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
             if _is_empty(self.hass, user_input):
                 errors["base"] = "empty_selection"
             else:
-                return self.async_update_reload_and_abort(entry, data=user_input)
+                # Clear options too: the options flow (async_step_init below)
+                # writes the FULL form into entry.options, and every runtime
+                # read merges {**entry.data, **entry.options} with options
+                # last. Without this, a single earlier options-flow save
+                # permanently shadows every future reconfigure — the save
+                # looks successful but has zero effect.
+                return self.async_update_reload_and_abort(
+                    entry, data=user_input, options={}
+                )
             defaults = user_input
         else:
             defaults = {**entry.data, **entry.options}

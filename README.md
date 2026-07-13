@@ -2,7 +2,7 @@
 
 [![Validate](https://github.com/hiSweid/last_changed_keeper/actions/workflows/validate.yml/badge.svg)](https://github.com/hiSweid/last_changed_keeper/actions/workflows/validate.yml)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
-![Version](https://img.shields.io/badge/version-0.5.7-blue.svg)
+![Version](https://img.shields.io/github/v/release/hiSweid/last_changed_keeper?label=version)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.11%2B-blue.svg)
 
 Keeps the **real "last changed"** time of your entities after a Home Assistant
@@ -42,6 +42,18 @@ Pick **domains** and/or single **entities**, an optional **exclude** list, the
 **grace** window, an optional **restore `last_updated`** toggle, and the
 **retry delays**. Change it anytime via *Configure*/*Reconfigure*. Service
 `last_changed_keeper.restore_now` runs a pass on demand.
+
+## Known limitations
+
+- Requires the `recorder` integration (hard dependency); setup fails without it.
+- Entities added after boot are only picked up on the *next* restart, not
+  retroactively — a state genuinely changing while HA was down cannot be
+  distinguished from a snapshot/recorder entry for the old value.
+- If a value changed while Home Assistant was off, the timestamp restored at
+  boot reflects the last known change *before* shutdown, not the (unknown)
+  real change time during the outage.
+- The bulk recorder lookback is 30 days; entities untouched for longer than
+  that rely on the snapshot or a deeper per-entity query.
 
 ## Notes
 
