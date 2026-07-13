@@ -27,7 +27,8 @@
       }
     },
     "error": {
-      "empty_selection": "Bitte mindestens eine Domain oder eine Entity auswählen."
+      "empty_selection": "Bitte mindestens eine Domain oder eine Entity auswählen.",
+      "invalid_retry_delays": "Retry-Verzögerungen müssen kommagetrennte ganze Sekunden zwischen 1 und 3600 sein (z. B. 30, 90, 180)."
     },
     "abort": {
       "already_configured": "Last Changed Keeper ist bereits eingerichtet.",
@@ -51,7 +52,8 @@
       }
     },
     "error": {
-      "empty_selection": "Bitte mindestens eine Domain oder eine Entity auswählen."
+      "empty_selection": "Bitte mindestens eine Domain oder eine Entity auswählen.",
+      "invalid_retry_delays": "Retry-Verzögerungen müssen kommagetrennte ganze Sekunden zwischen 1 und 3600 sein (z. B. 30, 90, 180)."
     }
   },
   "services": {
@@ -64,6 +66,14 @@
     "incompatible_state_cache": {
       "title": "Last Changed Keeper: inkompatible HA-Version",
       "description": "Die interne State-Cache-Struktur dieser Home-Assistant-Version wird nicht erkannt. last_changed wird zwar gesetzt, aber das Frontend zeigt eventuell verzögert den alten Wert. Bitte ein Update der Integration prüfen oder ein Issue melden."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper ist nicht eingerichtet oder nicht geladen."
+    },
+    "restore_failed": {
+      "message": "Der Wiederherstellungslauf ist fehlgeschlagen. Details siehe Log."
     }
   }
 }

@@ -27,7 +27,8 @@
       }
     },
     "error": {
-      "empty_selection": "Please select at least one domain or one entity."
+      "empty_selection": "Please select at least one domain or one entity.",
+      "invalid_retry_delays": "Retry delays must be comma-separated whole seconds between 1 and 3600 (e.g. 30, 90, 180)."
     },
     "abort": {
       "already_configured": "Last Changed Keeper is already configured.",
@@ -51,7 +52,8 @@
       }
     },
     "error": {
-      "empty_selection": "Please select at least one domain or one entity."
+      "empty_selection": "Please select at least one domain or one entity.",
+      "invalid_retry_delays": "Retry delays must be comma-separated whole seconds between 1 and 3600 (e.g. 30, 90, 180)."
     }
   },
   "services": {
@@ -64,6 +66,14 @@
     "incompatible_state_cache": {
       "title": "Last Changed Keeper: incompatible HA version",
       "description": "The internal state cache structure of this Home Assistant version is not recognised. last_changed is still set, but the frontend may briefly show the old value. Please check for an update of the integration or report an issue."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper is not set up or not loaded."
+    },
+    "restore_failed": {
+      "message": "The restore pass failed. Check the log for details."
     }
   }
 }

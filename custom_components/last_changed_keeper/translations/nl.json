@@ -27,7 +27,8 @@
       }
     },
     "error": {
-      "empty_selection": "Selecteer ten minste één domein of één entiteit."
+      "empty_selection": "Selecteer ten minste één domein of één entiteit.",
+      "invalid_retry_delays": "Herhalingsvertragingen moeten kommagescheiden gehele seconden zijn tussen 1 en 3600 (bijv. 30, 90, 180)."
     },
     "abort": {
       "already_configured": "Last Changed Keeper is al geconfigureerd.",
@@ -51,7 +52,8 @@
       }
     },
     "error": {
-      "empty_selection": "Selecteer ten minste één domein of één entiteit."
+      "empty_selection": "Selecteer ten minste één domein of één entiteit.",
+      "invalid_retry_delays": "Herhalingsvertragingen moeten kommagescheiden gehele seconden zijn tussen 1 en 3600 (bijv. 30, 90, 180)."
     }
   },
   "services": {
@@ -64,6 +66,14 @@
     "incompatible_state_cache": {
       "title": "Last Changed Keeper: incompatibele HA-versie",
       "description": "De interne state-cachestructuur van deze Home Assistant-versie wordt niet herkend. last_changed wordt wel ingesteld, maar de frontend toont mogelijk kort de oude waarde. Controleer op een update van de integratie of meld een probleem."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper is niet ingesteld of niet geladen."
+    },
+    "restore_failed": {
+      "message": "De herstelronde is mislukt. Bekijk het logboek voor details."
     }
   }
 }

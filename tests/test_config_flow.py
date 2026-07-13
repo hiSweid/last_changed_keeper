@@ -12,6 +12,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from custom_components.last_changed_keeper.config_flow import (
     _build_schema,
     _count_targets,
+    _invalid_retry_delays,
     _is_empty,
 )
 from custom_components.last_changed_keeper.const import (
@@ -19,6 +20,7 @@ from custom_components.last_changed_keeper.const import (
     CONF_ENTITIES,
     CONF_EXCLUDE,
     CONF_GRACE,
+    CONF_RETRY_DELAYS,
     DOMAIN,
 )
 
@@ -257,3 +259,52 @@ async def test_build_schema_includes_stored_domain_without_live_states(
             assert "valve" in validator.config["options"]
             return
     raise AssertionError("domains field not found in schema")
+
+
+# ----- Unit tests for _invalid_retry_delays ---------------------------------
+
+
+def test_invalid_retry_delays_accepts_empty_and_none():
+    assert _invalid_retry_delays("") is False
+    assert _invalid_retry_delays(None) is False
+    assert _invalid_retry_delays("   ") is False
+
+
+def test_invalid_retry_delays_accepts_valid_input():
+    assert _invalid_retry_delays("30, 90, 180") is False
+    assert _invalid_retry_delays("10;20;30") is False
+    assert _invalid_retry_delays("1") is False
+    assert _invalid_retry_delays("3600") is False
+
+
+def test_invalid_retry_delays_rejects_garbage():
+    assert _invalid_retry_delays("abc") is True
+    assert _invalid_retry_delays("30, abc") is True  # partial garbage too
+
+
+def test_invalid_retry_delays_rejects_out_of_range():
+    assert _invalid_retry_delays("0") is True
+    assert _invalid_retry_delays("3601") is True
+    assert _invalid_retry_delays("30, 99999") is True  # partial out-of-range too
+
+
+# ----- Regression: retry_delays validated in the flow -----------------------
+
+
+async def test_user_flow_invalid_retry_delays_shows_error(
+    recorder_mock, enable_custom_integrations, hass: HomeAssistant
+) -> None:
+    hass.states.async_set("light.kitchen", "on")
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result2 = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_DOMAINS: ["light"],
+            CONF_ENTITIES: [],
+            CONF_RETRY_DELAYS: "abc",
+        },
+    )
+    assert result2["type"] == FlowResultType.FORM
+    assert result2["errors"] == {CONF_RETRY_DELAYS: "invalid_retry_delays"}

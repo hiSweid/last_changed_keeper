@@ -2,6 +2,34 @@
 
 All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.10] — 2026-07-13
+### Changed
+- **`restore_now` now supports a response** (`supports_response: optional`):
+  returns `{"patched": N, "last_run": {...}}` when called with
+  `return_response: true`. Failures during the service-triggered pass now
+  raise `HomeAssistantError` (translated) instead of being silently
+  swallowed; calling the service with no loaded entry raises
+  `ServiceValidationError` instead of silently doing nothing.
+- The service is now registered in `async_setup()` (once, independent of
+  any config entry) instead of `async_setup_entry()`/`async_unload_entry()`.
+  It survives entry reloads/failures instead of a brief "service not
+  found" window on every options change, and calling it with the entry
+  unloaded now gives a clear error rather than a no-op or a raw "service
+  not found".
+- Migrated the job storage from `hass.data[DOMAIN]` to `entry.runtime_data`
+  (typed as `ConfigEntry[_RestoreJob]`) — the current HA convention; no
+  behavior change, but diagnostics/service code no longer needs defensive
+  `getattr`/`dict.get(None)` access.
+- The `retry_delays` free-text field is now validated in the config/
+  reconfigure/options flow (comma-separated whole seconds, 1–3600) instead
+  of silently falling back to the default on bad input with no feedback.
+### Tests
+- Added `tests/test_init.py` (setup registers the service and
+  `entry.runtime_data`; unload clears `runtime_data` but keeps the service;
+  `ServiceValidationError` with no loaded entry; response support;
+  `HomeAssistantError` wrapping on failure) and retry-delays validation
+  tests in `test_config_flow.py`.
+
 ## [0.5.9] — 2026-07-13
 ### Fixed
 - **Snapshot could stamp the wrong value's timestamp.** The snapshot written

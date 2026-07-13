@@ -33,13 +33,18 @@ from homeassistant.core import (
     Event,
     HomeAssistant,
     ServiceCall,
+    ServiceResponse,
     State,
+    SupportsResponse,
     callback,
 )
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -66,14 +71,35 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Lazily evaluated (PEP 695), so this forward-references _RestoreJob safely.
+type LckConfigEntry = ConfigEntry[_RestoreJob]
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+# single_config_entry: true, so this integration has no meaningful standalone
+# YAML config — but defining async_setup() (to register the service
+# independent of any entry) requires a CONFIG_SCHEMA, or hassfest's
+# config-schema check flags it.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the restore_now service once, regardless of entry state.
+
+    Registering here (rather than in async_setup_entry) means the service
+    still exists — with a clear ServiceValidationError — even if the entry
+    is disabled, failed, or momentarily reloading, instead of automations
+    hitting a raw "service not found".
+    """
+    _async_register_service(hass)
+    return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: LckConfigEntry) -> bool:
     """Set up the job, load the snapshot and run on start (or immediately)."""
     store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
     snapshot: dict[str, str] = await store.async_load() or {}
 
     job = _RestoreJob(hass, entry, store, snapshot)
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = job
+    entry.runtime_data = job
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     entry.async_on_unload(job.shutdown)
@@ -92,19 +118,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(async_at_started(hass, _on_started))
 
-    _async_register_service(hass)
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload the entry; remove the service when no entries remain."""
-    hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    if not hass.data.get(DOMAIN):
-        hass.services.async_remove(DOMAIN, SERVICE_RESTORE_NOW)
+async def async_unload_entry(hass: HomeAssistant, entry: LckConfigEntry) -> bool:
+    """Unload the entry.
+
+    Nothing to clean up manually: job.shutdown() runs via the
+    async_on_unload callback above, and core deletes entry.runtime_data
+    itself once this returns True. The service is registered in
+    async_setup() and is intentionally NOT torn down here.
+    """
     return True
 
 
-async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_update_listener(hass: HomeAssistant, entry: LckConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
@@ -114,13 +142,37 @@ def _async_register_service(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, SERVICE_RESTORE_NOW):
         return
 
-    async def _handle_restore_now(call: ServiceCall) -> None:
-        jobs: dict[str, _RestoreJob] = hass.data.get(DOMAIN, {})
-        for job in list(jobs.values()):
-            await job.async_run(single_pass=True)
+    async def _handle_restore_now(call: ServiceCall) -> ServiceResponse:
+        entries: list[LckConfigEntry] = hass.config_entries.async_loaded_entries(
+            DOMAIN
+        )
+        if not entries:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="entry_not_loaded"
+            )
+        patched_by_entry: dict[str, int] = {}
+        for entry in entries:
+            job = entry.runtime_data
+            try:
+                patched_by_entry[entry.entry_id] = await job._async_run_impl(
+                    single_pass=True
+                )
+            except Exception as err:  # noqa: BLE001 - re-raise as a HA error
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN, translation_key="restore_failed"
+                ) from err
+        if not call.return_response:
+            return None
+        # single_config_entry: true, so there is exactly one entry/job.
+        job = entries[0].runtime_data
+        return {"patched": sum(patched_by_entry.values()), "last_run": job.stats}
 
     hass.services.async_register(
-        DOMAIN, SERVICE_RESTORE_NOW, _handle_restore_now, schema=vol.Schema({})
+        DOMAIN,
+        SERVICE_RESTORE_NOW,
+        _handle_restore_now,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
 

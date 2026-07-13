@@ -110,6 +110,27 @@ def _is_empty(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
     )
 
 
+def _invalid_retry_delays(raw: Any) -> bool:
+    """True if raw is a non-empty string where not every token is a valid
+    integer in 1..3600. Stricter than the runtime _parse_delays() fallback
+    (which silently drops bad tokens and falls back to the default) — this
+    is the one free-text field in the flow, so bad input should be rejected
+    with a visible error rather than silently ignored."""
+    if not isinstance(raw, str) or not raw.strip():
+        return False
+    parts = [p for p in raw.replace(";", ",").split(",") if p.strip()]
+    if not parts:
+        return False
+    for part in parts:
+        try:
+            value = int(part.strip())
+        except ValueError:
+            return True
+        if not 1 <= value <= 3600:
+            return True
+    return False
+
+
 class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
     """One-time setup flow."""
 
@@ -125,6 +146,8 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             if _is_empty(self.hass, user_input):
                 errors["base"] = "empty_selection"
+            elif _invalid_retry_delays(user_input.get(CONF_RETRY_DELAYS)):
+                errors[CONF_RETRY_DELAYS] = "invalid_retry_delays"
             else:
                 return self.async_create_entry(
                     title="Last Changed Keeper", data=user_input
@@ -154,6 +177,8 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             if _is_empty(self.hass, user_input):
                 errors["base"] = "empty_selection"
+            elif _invalid_retry_delays(user_input.get(CONF_RETRY_DELAYS)):
+                errors[CONF_RETRY_DELAYS] = "invalid_retry_delays"
             else:
                 # Clear options too: the options flow (async_step_init below)
                 # writes the FULL form into entry.options, and every runtime
@@ -197,6 +222,8 @@ class LastChangedKeeperOptionsFlow(OptionsFlow):
         if user_input is not None:
             if _is_empty(self.hass, user_input):
                 errors["base"] = "empty_selection"
+            elif _invalid_retry_delays(user_input.get(CONF_RETRY_DELAYS)):
+                errors[CONF_RETRY_DELAYS] = "invalid_retry_delays"
             else:
                 return self.async_create_entry(title="", data=user_input)
             defaults = user_input

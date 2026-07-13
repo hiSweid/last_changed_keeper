@@ -27,7 +27,8 @@
       }
     },
     "error": {
-      "empty_selection": "Wybierz co najmniej jedną domenę lub jedną encję."
+      "empty_selection": "Wybierz co najmniej jedną domenę lub jedną encję.",
+      "invalid_retry_delays": "Opóźnienia ponawiania muszą być liczbami całkowitymi sekund oddzielonymi przecinkami w zakresie od 1 do 3600 (np. 30, 90, 180)."
     },
     "abort": {
       "already_configured": "Last Changed Keeper jest już skonfigurowany.",
@@ -51,7 +52,8 @@
       }
     },
     "error": {
-      "empty_selection": "Wybierz co najmniej jedną domenę lub jedną encję."
+      "empty_selection": "Wybierz co najmniej jedną domenę lub jedną encję.",
+      "invalid_retry_delays": "Opóźnienia ponawiania muszą być liczbami całkowitymi sekund oddzielonymi przecinkami w zakresie od 1 do 3600 (np. 30, 90, 180)."
     }
   },
   "services": {
@@ -64,6 +66,14 @@
     "incompatible_state_cache": {
       "title": "Last Changed Keeper: niezgodna wersja HA",
       "description": "Wewnętrzna struktura pamięci podręcznej stanu w tej wersji Home Assistant nie jest rozpoznawana. last_changed jest mimo to ustawiane, ale frontend może przez chwilę pokazywać starą wartość. Sprawdź aktualizację integracji lub zgłoś problem."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper nie jest skonfigurowany lub nie jest załadowany."
+    },
+    "restore_failed": {
+      "message": "Przebieg przywracania nie powiódł się. Sprawdź dziennik, aby uzyskać szczegóły."
     }
   }
 }

@@ -27,7 +27,8 @@
       }
     },
     "error": {
-      "empty_selection": "Veuillez sélectionner au moins un domaine ou une entité."
+      "empty_selection": "Veuillez sélectionner au moins un domaine ou une entité.",
+      "invalid_retry_delays": "Les délais de nouvelle tentative doivent être des secondes entières séparées par des virgules entre 1 et 3600 (ex. 30, 90, 180)."
     },
     "abort": {
       "already_configured": "Last Changed Keeper est déjà configuré.",
@@ -51,7 +52,8 @@
       }
     },
     "error": {
-      "empty_selection": "Veuillez sélectionner au moins un domaine ou une entité."
+      "empty_selection": "Veuillez sélectionner au moins un domaine ou une entité.",
+      "invalid_retry_delays": "Les délais de nouvelle tentative doivent être des secondes entières séparées par des virgules entre 1 et 3600 (ex. 30, 90, 180)."
     }
   },
   "services": {
@@ -64,6 +66,14 @@
     "incompatible_state_cache": {
       "title": "Last Changed Keeper : version de HA incompatible",
       "description": "La structure interne du cache d'état de cette version de Home Assistant n'est pas reconnue. last_changed est tout de même défini, mais le frontend peut afficher brièvement l'ancienne valeur. Veuillez vérifier une mise à jour de l'intégration ou signaler un problème."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper n'est pas configuré ou n'est pas chargé."
+    },
+    "restore_failed": {
+      "message": "La passe de restauration a échoué. Consultez le journal pour plus de détails."
     }
   }
 }
