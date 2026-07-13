@@ -2,6 +2,22 @@
 
 All notable changes. Loosely based on [Keep a Changelog].
 
+## [0.5.8] — 2026-07-12
+### Fixed
+- Config/options/reconfigure flow: selecting a domain and then excluding
+  every one of its entities via the exclude list is now correctly rejected
+  as an empty selection, instead of silently creating an entry with zero
+  effective targets.
+### Changed
+- `_resolve`: an unbounded bulk-query result is now kept as a cheap
+  best-effort fallback candidate if the deep per-entity query is
+  inconclusive or errors, instead of being discarded outright.
+### Tests
+- Added `tests/test_config_flow.py` (config, reconfigure and options flow,
+  including the exclude-empties-domain regression) and
+  `tests/test_apply_and_bulk.py` (`_apply_last_changed` incl. cache and
+  degraded-mode paths).
+
 ## [0.5.7] — 2026-06-25
 ### Fixed
 - CI: pytest could not import `custom_components` (repo root not on `sys.path`).

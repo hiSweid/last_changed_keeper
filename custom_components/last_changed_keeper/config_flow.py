@@ -97,8 +97,17 @@ def _count_targets(
     return len(out)
 
 
-def _is_empty(user_input: dict[str, Any]) -> bool:
-    return not user_input.get(CONF_DOMAINS) and not user_input.get(CONF_ENTITIES)
+def _is_empty(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
+    """True if the resulting target set (after exclude) would be empty."""
+    return (
+        _count_targets(
+            hass,
+            user_input.get(CONF_DOMAINS),
+            user_input.get(CONF_ENTITIES),
+            user_input.get(CONF_EXCLUDE),
+        )
+        == 0
+    )
 
 
 class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -114,7 +123,7 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
 
         errors: dict[str, str] = {}
         if user_input is not None:
-            if _is_empty(user_input):
+            if _is_empty(self.hass, user_input):
                 errors["base"] = "empty_selection"
             else:
                 return self.async_create_entry(
@@ -143,7 +152,7 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
 
         errors: dict[str, str] = {}
         if user_input is not None:
-            if _is_empty(user_input):
+            if _is_empty(self.hass, user_input):
                 errors["base"] = "empty_selection"
             else:
                 return self.async_update_reload_and_abort(entry, data=user_input)
@@ -178,7 +187,7 @@ class LastChangedKeeperOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            if _is_empty(user_input):
+            if _is_empty(self.hass, user_input):
                 errors["base"] = "empty_selection"
             else:
                 return self.async_create_entry(title="", data=user_input)

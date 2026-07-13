@@ -373,11 +373,13 @@ class _RestoreJob:
         def _ok(ts: datetime | None) -> bool:
             return ts is not None and (cutoff - ts).total_seconds() > MARGIN_SECONDS
 
-        # 1. Bulk result (only if unambiguously bounded)
+        # 1. Bulk result (only if unambiguously bounded). Keep an unbounded
+        # result around as a cheap best-effort fallback for step 4.
+        bulk_ts: datetime | None = None
         if bulk_states is not None:
-            ts, bounded = _real_last_changed(bulk_states, live.state)
-            if bounded and _ok(ts):
-                return ts
+            bulk_ts, bounded = _real_last_changed(bulk_states, live.state)
+            if bounded and _ok(bulk_ts):
+                return bulk_ts
 
         # 2. Snapshot (free, in memory, authoritative) — before the costly query
         snap_raw = self._snapshot.get(entity_id)
@@ -399,9 +401,12 @@ class _RestoreJob:
         if bounded2 and _ok(ts2):
             return ts2
 
-        # 4. Best effort from an unbounded run
+        # 4. Best effort from an unbounded run (deep query first, bulk as
+        # a cheap fallback if the deep query errored or was inconclusive).
         if _ok(ts2):
             return ts2
+        if _ok(bulk_ts):
+            return bulk_ts
         return None
 
     async def _bulk_fetch(self, entity_ids: list[str]) -> dict[str, list]:
