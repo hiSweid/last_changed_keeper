@@ -15,12 +15,12 @@ repair issue is raised instead of crashing.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
 import voluptuous as vol
-
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import (
     get_last_state_changes,
@@ -39,9 +39,16 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_call_later, async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_state_change_event,
+    async_track_time_interval,
+)
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
@@ -49,16 +56,21 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     BULK_WINDOW_DAYS,
+    CONF_AREAS,
     CONF_DOMAINS,
     CONF_ENTITIES,
     CONF_EXCLUDE,
     CONF_GRACE,
+    CONF_LABELS,
     CONF_RESTORE_LAST_UPDATED,
     CONF_RETRY_DELAYS,
+    CONF_SNAPSHOT_INTERVAL,
     DEFAULT_DOMAINS,
-    DEFAULT_RESTORE_LAST_UPDATED,
     DEFAULT_GRACE,
+    DEFAULT_RESTORE_LAST_UPDATED,
+    DEFAULT_SNAPSHOT_INTERVAL,
     DOMAIN,
+    EVENT_RESTORED,
     HISTORY_DEPTH,
     INVALID_STATES,
     ISSUE_INCOMPATIBLE,
@@ -109,6 +121,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: LckConfigEntry) -> bool:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, job.async_write_snapshot)
     )
 
+    # Also write it periodically: a clean shutdown isn't guaranteed (power
+    # loss, OOM kill, forced container restart), and a snapshot from days
+    # ago is a much weaker fallback than one from a few hours ago,
+    # especially now that a snapshot is only usable on an exact state match
+    # (see async_write_snapshot). 0 disables this (shutdown-only).
+    interval = job._snapshot_interval
+    if interval > 0:
+        entry.async_on_unload(
+            async_track_time_interval(
+                hass,
+                job.async_write_snapshot,
+                timedelta(seconds=interval),
+                cancel_on_shutdown=True,
+            )
+        )
+
     # async_at_started calls the callback once HA is fully started (entities
     # loaded) — or immediately if already started (reload/service). Robust
     # against the "starting" phase where hass.is_running is already True.
@@ -157,7 +185,7 @@ def _async_register_service(hass: HomeAssistant) -> None:
                 patched_by_entry[entry.entry_id] = await job._async_run_impl(
                     single_pass=True
                 )
-            except Exception as err:  # noqa: BLE001 - re-raise as a HA error
+            except Exception as err:
                 raise HomeAssistantError(
                     translation_domain=DOMAIN, translation_key="restore_failed"
                 ) from err
@@ -196,18 +224,23 @@ class _RestoreJob:
         self._unsub_timers: list[CALLBACK_TYPE] = []
         self._degraded = False
         self._also_updated = False
+        self._final_fired = False
         self.stats: dict[str, object] = {}
 
     # ----- Configuration -------------------------------------------------
 
     @property
-    def _config(self) -> tuple[list[str], list[str], list[str], float]:
+    def _config(
+        self,
+    ) -> tuple[list[str], list[str], list[str], float, list[str], list[str]]:
         data = {**self.entry.data, **self.entry.options}
         return (
             data.get(CONF_DOMAINS, DEFAULT_DOMAINS),
             data.get(CONF_ENTITIES, []),
             data.get(CONF_EXCLUDE, []),
             float(data.get(CONF_GRACE, DEFAULT_GRACE)),
+            data.get(CONF_LABELS, []),
+            data.get(CONF_AREAS, []),
         )
 
     @property
@@ -222,13 +255,23 @@ class _RestoreJob:
         data = {**self.entry.data, **self.entry.options}
         return _parse_delays(data.get(CONF_RETRY_DELAYS), RETRY_DELAYS)
 
+    @property
+    def _snapshot_interval(self) -> float:
+        data = {**self.entry.data, **self.entry.options}
+        try:
+            return float(data.get(CONF_SNAPSHOT_INTERVAL, DEFAULT_SNAPSHOT_INTERVAL))
+        except (TypeError, ValueError):
+            return DEFAULT_SNAPSHOT_INTERVAL
+
     def _targets(
         self,
         domains: list[str],
         entities: list[str],
         exclude: list[str] | None = None,
+        labels: list[str] | None = None,
+        areas: list[str] | None = None,
     ) -> set[str]:
-        return resolve_targets(self.hass, domains, entities, exclude)
+        return resolve_targets(self.hass, domains, entities, exclude, labels, areas)
 
     # ----- Lifecycle -----------------------------------------------------
 
@@ -248,17 +291,21 @@ class _RestoreJob:
 
     # ----- Snapshot ------------------------------------------------------
 
-    async def async_write_snapshot(self, _event: Event | None = None) -> None:
+    async def async_write_snapshot(self, _when: Event | datetime | None = None) -> None:
         """Persist the current state + last_changed of all targets.
 
         The state value is stored alongside the timestamp so a snapshot can
         only be applied if the entity still holds the same value on the next
         boot (see _resolve) — otherwise it could stamp the *previous* value's
         last_changed onto a genuinely new value.
+
+        Used both as the EVENT_HOMEASSISTANT_STOP listener (receives an
+        Event) and as the periodic snapshot timer (receives a datetime) —
+        the argument itself is never used, both just trigger a fresh write.
         """
-        domains, entities, exclude, _ = self._config
+        domains, entities, exclude, _, labels, areas = self._config
         data: dict[str, dict[str, str]] = {}
-        for entity_id in self._targets(domains, entities, exclude):
+        for entity_id in self._targets(domains, entities, exclude, labels, areas):
             live = self.hass.states.get(entity_id)
             if live is not None and live.state not in INVALID_STATES:
                 data[entity_id] = {"s": live.state, "t": live.last_changed.isoformat()}
@@ -271,7 +318,7 @@ class _RestoreJob:
         """Guarded run: an exception must not kill the HA start."""
         try:
             return await self._async_run_impl(single_pass=single_pass)
-        except Exception:  # noqa: BLE001
+        except Exception:
             _LOGGER.exception("Last Changed Keeper: async_run failed")
             return 0
 
@@ -289,13 +336,14 @@ class _RestoreJob:
         self.shutdown()
         self._degraded = False
         self._also_updated = self._restore_last_updated_enabled
-        domains, entities, exclude, grace = self._config
-        targets = self._targets(domains, entities, exclude)
+        domains, entities, exclude, grace, labels, areas = self._config
+        targets = self._targets(domains, entities, exclude, labels, areas)
         if not targets:
             return 0
 
         self._startup = dt_util.utcnow()
         self._pending = set()
+        self._final_fired = False
 
         # Candidates: fresh (restart artifact) and currently valid.
         candidates: list[str] = []
@@ -348,6 +396,7 @@ class _RestoreJob:
             "(bulk: %d entities)",
             patched, len(self._pending), len(bulk),
         )
+        self._fire_restored_event(final=not self._pending)
 
         if single_pass or not self._pending:
             return patched
@@ -405,7 +454,7 @@ class _RestoreJob:
 
     async def _immediate_pending_pass(self) -> int:
         """Service-triggered pass over the currently pending set, in place."""
-        _, _, _, grace = self._config
+        _, _, _, grace, _, _ = self._config
         run_patched = await self._patch_all_pending(grace)
         _LOGGER.info(
             "Last Changed Keeper: manual pass — %d patched, %d pending",
@@ -441,7 +490,28 @@ class _RestoreJob:
     @callback
     def _cleanup_if_done(self) -> None:
         if not self._pending:
+            self._fire_restored_event(final=True)
             self.shutdown()
+
+    @callback
+    def _fire_restored_event(self, *, final: bool) -> None:
+        """Fire EVENT_RESTORED so automations can wait for the pass to
+        settle instead of racing it (e.g. an automation computing "unused
+        for N days" right after boot, before this integration has patched
+        anything yet)."""
+        if final:
+            if self._final_fired:
+                return
+            self._final_fired = True
+        self.hass.bus.async_fire(
+            EVENT_RESTORED,
+            {
+                "entry_id": self.entry.entry_id,
+                "patched_total": int(self.stats.get("patched_total", 0)),
+                "pending": len(self._pending),
+                "final": final,
+            },
+        )
 
     # ----- Resolving the real timestamp ----------------------------------
 
@@ -534,8 +604,11 @@ def resolve_targets(
     domains: list[str] | None,
     entities: list[str] | None,
     exclude: list[str] | None = None,
+    labels: list[str] | None = None,
+    areas: list[str] | None = None,
 ) -> set[str]:
-    """Explicit entities plus all states of the selected domains, minus exclude.
+    """Explicit entities, all states of the selected domains, and everything
+    reachable via the selected labels/areas — minus exclude.
 
     Shared between _RestoreJob (what actually gets patched) and config_flow
     (the live count / empty-selection check) so both can never disagree.
@@ -545,7 +618,46 @@ def resolve_targets(
         for state in hass.states.async_all():
             if state.domain in domains:
                 out.add(state.entity_id)
+    if labels or areas:
+        out |= _entities_for_labels_and_areas(hass, labels, areas)
     out -= set(exclude or [])
+    return out
+
+
+def _entities_for_labels_and_areas(
+    hass: HomeAssistant, labels: list[str] | None, areas: list[str] | None
+) -> set[str]:
+    """Cascade labels/areas to entities the same way HA's built-in label/area
+    target selectors do: a label or area on a device or area applies to
+    every entity in/on it, not just entities labeled directly."""
+    label_set = set(labels or [])
+    area_set = set(areas or [])
+    if not label_set and not area_set:
+        return set()
+
+    area_reg = ar.async_get(hass)
+    dev_reg = dr.async_get(hass)
+    ent_reg = er.async_get(hass)
+
+    if label_set:
+        area_set = set(area_set)  # don't mutate the caller's set
+        for area in area_reg.async_list_areas():
+            if label_set & area.labels:
+                area_set.add(area.id)
+
+    device_ids: set[str] = set()
+    for device in dev_reg.devices.values():
+        if (label_set & device.labels) or (device.area_id in area_set):
+            device_ids.add(device.id)
+
+    out: set[str] = set()
+    for entry in ent_reg.entities.values():
+        if (
+            (label_set & entry.labels)
+            or (entry.area_id in area_set)
+            or (entry.device_id in device_ids)
+        ):
+            out.add(entry.entity_id)
     return out
 
 
@@ -630,10 +742,9 @@ def _apply_last_changed(
         state.last_changed = ts
         if also_updated:
             state.last_updated = ts
-            try:
+            with contextlib.suppress(AttributeError):
+                # slot does not exist in this HA version
                 state.last_updated_timestamp = ts.timestamp()
-            except AttributeError:
-                pass  # slot does not exist in this HA version
     except (AttributeError, TypeError) as err:
         _LOGGER.warning("Could not set last_changed (HA version?): %s", err)
         return False

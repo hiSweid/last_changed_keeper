@@ -4,6 +4,8 @@ DOMAIN = "last_changed_keeper"
 
 CONF_DOMAINS = "domains"
 CONF_ENTITIES = "entities"
+CONF_LABELS = "labels"
+CONF_AREAS = "areas"
 CONF_EXCLUDE = "exclude"
 CONF_GRACE = "grace_seconds"
 CONF_RESTORE_LAST_UPDATED = "restore_last_updated"
@@ -13,9 +15,17 @@ DEFAULT_RESTORE_LAST_UPDATED = False
 
 SERVICE_RESTORE_NOW = "restore_now"
 
+EVENT_RESTORED = f"{DOMAIN}_restored"
+
 # Snapshot store (fallback when the recorder no longer has the entity).
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.snapshot"
+
+# How often (seconds) to write a periodic snapshot in addition to the one on
+# clean shutdown — hedges against crashes/power loss where the shutdown
+# event never fires. 0 disables periodic snapshots (shutdown-only).
+DEFAULT_SNAPSHOT_INTERVAL = 21600  # 6h
+CONF_SNAPSHOT_INTERVAL = "snapshot_interval"
 
 # Repair issue in case a future HA version reworks the state cache.
 ISSUE_INCOMPATIBLE = "incompatible_state_cache"

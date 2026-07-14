@@ -38,10 +38,19 @@ overwritten. Cost is near zero: a short burst at boot, then idle.
 
 ## Configuration
 
-Pick **domains** and/or single **entities**, an optional **exclude** list, the
-**grace** window, an optional **restore `last_updated`** toggle, and the
-**retry delays**. Change it anytime via *Configure*/*Reconfigure*. Service
-`last_changed_keeper.restore_now` runs a pass on demand.
+Pick **domains**, single **entities**, **labels** and/or **areas** (labels/
+areas cascade through devices, same as HA's built-in label/area target
+selectors), an optional **exclude** list, the **grace** window, an optional
+**periodic snapshot interval** (in addition to the one written on clean
+shutdown — hedges against crashes/power loss), an optional **restore
+`last_updated`** toggle, and the **retry delays**. Change it anytime via
+*Configure*/*Reconfigure*.
+
+Service `last_changed_keeper.restore_now` runs a pass on demand and
+optionally returns a response (`patched`/`last_run`). Event
+`last_changed_keeper_restored` fires once a pass settles (`final: true` in
+the event data) — useful for automations that would otherwise race the
+restore pass right after boot.
 
 ## Known limitations
 

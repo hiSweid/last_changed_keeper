@@ -7,8 +7,11 @@
         "data": {
           "domains": "Domaines",
           "entities": "Entités individuelles supplémentaires",
+          "labels": "Étiquettes",
+          "areas": "Zones",
           "exclude": "Entités exclues",
           "grace_seconds": "Patcher uniquement si last_changed est plus récent que (secondes)",
+          "snapshot_interval": "Instantané périodique toutes les (secondes, 0 = désactivé)",
           "restore_last_updated": "Restaurer aussi last_updated",
           "retry_delays": "Délais de relance en secondes (séparés par des virgules)"
         }
@@ -19,8 +22,11 @@
         "data": {
           "domains": "Domaines",
           "entities": "Entités individuelles supplémentaires",
+          "labels": "Étiquettes",
+          "areas": "Zones",
           "exclude": "Entités exclues",
           "grace_seconds": "Patcher uniquement si last_changed est plus récent que (secondes)",
+          "snapshot_interval": "Instantané périodique toutes les (secondes, 0 = désactivé)",
           "restore_last_updated": "Restaurer aussi last_updated",
           "retry_delays": "Délais de relance en secondes (séparés par des virgules)"
         }
@@ -44,8 +50,11 @@
         "data": {
           "domains": "Domaines",
           "entities": "Entités individuelles supplémentaires",
+          "labels": "Étiquettes",
+          "areas": "Zones",
           "exclude": "Entités exclues",
           "grace_seconds": "Patcher uniquement si last_changed est plus récent que (secondes)",
+          "snapshot_interval": "Instantané périodique toutes les (secondes, 0 = désactivé)",
           "restore_last_updated": "Restaurer aussi last_updated",
           "retry_delays": "Délais de relance en secondes (séparés par des virgules)"
         }

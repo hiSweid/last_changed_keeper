@@ -7,8 +7,11 @@
         "data": {
           "domains": "Dominios",
           "entities": "Entidades individuales adicionales",
+          "labels": "Etiquetas",
+          "areas": "Áreas",
           "exclude": "Entidades excluidas",
           "grace_seconds": "Aplicar solo si last_changed es más reciente que (segundos)",
+          "snapshot_interval": "Instantánea periódica cada (segundos, 0 = desactivado)",
           "restore_last_updated": "Restaurar también last_updated",
           "retry_delays": "Retardos de reintento en segundos (separados por comas)"
         }
@@ -19,8 +22,11 @@
         "data": {
           "domains": "Dominios",
           "entities": "Entidades individuales adicionales",
+          "labels": "Etiquetas",
+          "areas": "Áreas",
           "exclude": "Entidades excluidas",
           "grace_seconds": "Aplicar solo si last_changed es más reciente que (segundos)",
+          "snapshot_interval": "Instantánea periódica cada (segundos, 0 = desactivado)",
           "restore_last_updated": "Restaurar también last_updated",
           "retry_delays": "Retardos de reintento en segundos (separados por comas)"
         }
@@ -44,8 +50,11 @@
         "data": {
           "domains": "Dominios",
           "entities": "Entidades individuales adicionales",
+          "labels": "Etiquetas",
+          "areas": "Áreas",
           "exclude": "Entidades excluidas",
           "grace_seconds": "Aplicar solo si last_changed es más reciente que (segundos)",
+          "snapshot_interval": "Instantánea periódica cada (segundos, 0 = desactivado)",
           "restore_last_updated": "Restaurar también last_updated",
           "retry_delays": "Retardos de reintento en segundos (separados por comas)"
         }

@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -16,15 +15,19 @@ from homeassistant.helpers import selector
 
 from . import resolve_targets
 from .const import (
+    CONF_AREAS,
     CONF_DOMAINS,
     CONF_ENTITIES,
     CONF_EXCLUDE,
     CONF_GRACE,
+    CONF_LABELS,
     CONF_RESTORE_LAST_UPDATED,
     CONF_RETRY_DELAYS,
+    CONF_SNAPSHOT_INTERVAL,
     DEFAULT_DOMAINS,
     DEFAULT_GRACE,
     DEFAULT_RESTORE_LAST_UPDATED,
+    DEFAULT_SNAPSHOT_INTERVAL,
     DOMAIN,
     RETRY_DELAYS,
 )
@@ -59,6 +62,12 @@ def _build_schema(hass: HomeAssistant, defaults: dict[str, Any]) -> vol.Schema:
                 selector.EntitySelectorConfig(multiple=True)
             ),
             vol.Optional(
+                CONF_LABELS, default=defaults.get(CONF_LABELS, [])
+            ): selector.LabelSelector(selector.LabelSelectorConfig(multiple=True)),
+            vol.Optional(
+                CONF_AREAS, default=defaults.get(CONF_AREAS, [])
+            ): selector.AreaSelector(selector.AreaSelectorConfig(multiple=True)),
+            vol.Optional(
                 CONF_EXCLUDE, default=defaults.get(CONF_EXCLUDE, [])
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(multiple=True)
@@ -68,6 +77,17 @@ def _build_schema(hass: HomeAssistant, defaults: dict[str, Any]) -> vol.Schema:
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(
                     min=60, max=86400, step=60, unit_of_measurement="s",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_SNAPSHOT_INTERVAL,
+                default=defaults.get(
+                    CONF_SNAPSHOT_INTERVAL, DEFAULT_SNAPSHOT_INTERVAL
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0, max=604800, step=300, unit_of_measurement="s",
                     mode=selector.NumberSelectorMode.BOX,
                 )
             ),
@@ -92,9 +112,11 @@ def _count_targets(
     domains: list[str] | None,
     entities: list[str] | None,
     exclude: list[str] | None = None,
+    labels: list[str] | None = None,
+    areas: list[str] | None = None,
 ) -> int:
     """Number of entities affected by the selection (for the live count)."""
-    return len(resolve_targets(hass, domains, entities, exclude))
+    return len(resolve_targets(hass, domains, entities, exclude, labels, areas))
 
 
 def _is_empty(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
@@ -105,6 +127,8 @@ def _is_empty(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
             user_input.get(CONF_DOMAINS),
             user_input.get(CONF_ENTITIES),
             user_input.get(CONF_EXCLUDE),
+            user_input.get(CONF_LABELS),
+            user_input.get(CONF_AREAS),
         )
         == 0
     )
@@ -159,6 +183,8 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
             defaults.get(CONF_DOMAINS, DEFAULT_DOMAINS),
             defaults.get(CONF_ENTITIES, []),
             defaults.get(CONF_EXCLUDE, []),
+            defaults.get(CONF_LABELS, []),
+            defaults.get(CONF_AREAS, []),
         )
         return self.async_show_form(
             step_id="user",
@@ -198,6 +224,8 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
             defaults.get(CONF_DOMAINS, DEFAULT_DOMAINS),
             defaults.get(CONF_ENTITIES, []),
             defaults.get(CONF_EXCLUDE, []),
+            defaults.get(CONF_LABELS, []),
+            defaults.get(CONF_AREAS, []),
         )
         return self.async_show_form(
             step_id="reconfigure",
@@ -235,6 +263,8 @@ class LastChangedKeeperOptionsFlow(OptionsFlow):
             defaults.get(CONF_DOMAINS, DEFAULT_DOMAINS),
             defaults.get(CONF_ENTITIES, []),
             defaults.get(CONF_EXCLUDE, []),
+            defaults.get(CONF_LABELS, []),
+            defaults.get(CONF_AREAS, []),
         )
         return self.async_show_form(
             step_id="init",

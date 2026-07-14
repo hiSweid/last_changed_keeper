@@ -7,8 +7,11 @@
         "data": {
           "domains": "Domains",
           "entities": "Additional individual entities",
+          "labels": "Labels",
+          "areas": "Areas",
           "exclude": "Excluded entities",
           "grace_seconds": "Only patch if last_changed is younger than (seconds)",
+          "snapshot_interval": "Periodic snapshot every (seconds, 0 = off)",
           "restore_last_updated": "Also restore last_updated",
           "retry_delays": "Retry delays in seconds (comma-separated)"
         }
@@ -19,8 +22,11 @@
         "data": {
           "domains": "Domains",
           "entities": "Additional individual entities",
+          "labels": "Labels",
+          "areas": "Areas",
           "exclude": "Excluded entities",
           "grace_seconds": "Only patch if last_changed is younger than (seconds)",
+          "snapshot_interval": "Periodic snapshot every (seconds, 0 = off)",
           "restore_last_updated": "Also restore last_updated",
           "retry_delays": "Retry delays in seconds (comma-separated)"
         }
@@ -44,8 +50,11 @@
         "data": {
           "domains": "Domains",
           "entities": "Additional individual entities",
+          "labels": "Labels",
+          "areas": "Areas",
           "exclude": "Excluded entities",
           "grace_seconds": "Only patch if last_changed is younger than (seconds)",
+          "snapshot_interval": "Periodic snapshot every (seconds, 0 = off)",
           "restore_last_updated": "Also restore last_updated",
           "retry_delays": "Retry delays in seconds (comma-separated)"
         }

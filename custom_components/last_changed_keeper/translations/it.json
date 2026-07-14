@@ -7,8 +7,11 @@
         "data": {
           "domains": "Domini",
           "entities": "Entità singole aggiuntive",
+          "labels": "Etichette",
+          "areas": "Aree",
           "exclude": "Entità escluse",
           "grace_seconds": "Applica solo se last_changed è più recente di (secondi)",
+          "snapshot_interval": "Snapshot periodico ogni (secondi, 0 = disattivato)",
           "restore_last_updated": "Ripristina anche last_updated",
           "retry_delays": "Ritardi di ripetizione in secondi (separati da virgole)"
         }
@@ -19,8 +22,11 @@
         "data": {
           "domains": "Domini",
           "entities": "Entità singole aggiuntive",
+          "labels": "Etichette",
+          "areas": "Aree",
           "exclude": "Entità escluse",
           "grace_seconds": "Applica solo se last_changed è più recente di (secondi)",
+          "snapshot_interval": "Snapshot periodico ogni (secondi, 0 = disattivato)",
           "restore_last_updated": "Ripristina anche last_updated",
           "retry_delays": "Ritardi di ripetizione in secondi (separati da virgole)"
         }
@@ -44,8 +50,11 @@
         "data": {
           "domains": "Domini",
           "entities": "Entità singole aggiuntive",
+          "labels": "Etichette",
+          "areas": "Aree",
           "exclude": "Entità escluse",
           "grace_seconds": "Applica solo se last_changed è più recente di (secondi)",
+          "snapshot_interval": "Snapshot periodico ogni (secondi, 0 = disattivato)",
           "restore_last_updated": "Ripristina anche last_updated",
           "retry_delays": "Ritardi di ripetizione in secondi (separati da virgole)"
         }

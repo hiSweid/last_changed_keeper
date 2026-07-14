@@ -7,8 +7,11 @@
         "data": {
           "domains": "Domains",
           "entities": "Zusätzliche einzelne Entities",
+          "labels": "Labels",
+          "areas": "Bereiche",
           "exclude": "Ausgeschlossene Entities",
           "grace_seconds": "Nur patchen, wenn last_changed jünger als (Sekunden)",
+          "snapshot_interval": "Periodischer Snapshot alle (Sekunden, 0 = aus)",
           "restore_last_updated": "Auch last_updated wiederherstellen",
           "retry_delays": "Wiederholungs-Verzögerungen in Sekunden (kommagetrennt)"
         }
@@ -19,8 +22,11 @@
         "data": {
           "domains": "Domains",
           "entities": "Zusätzliche einzelne Entities",
+          "labels": "Labels",
+          "areas": "Bereiche",
           "exclude": "Ausgeschlossene Entities",
           "grace_seconds": "Nur patchen, wenn last_changed jünger als (Sekunden)",
+          "snapshot_interval": "Periodischer Snapshot alle (Sekunden, 0 = aus)",
           "restore_last_updated": "Auch last_updated wiederherstellen",
           "retry_delays": "Wiederholungs-Verzögerungen in Sekunden (kommagetrennt)"
         }
@@ -44,8 +50,11 @@
         "data": {
           "domains": "Domains",
           "entities": "Zusätzliche einzelne Entities",
+          "labels": "Labels",
+          "areas": "Bereiche",
           "exclude": "Ausgeschlossene Entities",
           "grace_seconds": "Nur patchen, wenn last_changed jünger als (Sekunden)",
+          "snapshot_interval": "Periodischer Snapshot alle (Sekunden, 0 = aus)",
           "restore_last_updated": "Auch last_updated wiederherstellen",
           "retry_delays": "Wiederholungs-Verzögerungen in Sekunden (kommagetrennt)"
         }

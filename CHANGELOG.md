@@ -2,6 +2,26 @@
 
 All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] — 2026-07-14
+### Added
+- **Label and area targeting.** Selecting a label or area now cascades
+  through devices the same way HA's built-in label/area target selectors
+  do (a label/area on a device or area applies to every entity in/on it),
+  in addition to the existing domain/entity selection.
+- **Periodic snapshot.** Optional `snapshot_interval` (default 6h, 0 =
+  shutdown-only) writes the snapshot on a timer in addition to on clean
+  shutdown — hedges against crashes/power loss where
+  `EVENT_HOMEASSISTANT_STOP` never fires.
+- **`last_changed_keeper_restored` event**, fired once a restore pass
+  settles (`final: true` when nothing is pending anymore). Lets
+  automations that depend on `last_changed` (e.g. "unused for N days")
+  wait for the pass instead of racing it right after boot.
+- ruff added to CI (`select = ["E","F","W","I","UP","B","SIM","RUF","BLE"]`).
+### Tests
+- Added `tests/test_resolve_targets.py` (label/area cascading through
+  devices and areas), `tests/test_restored_event.py`, and
+  `tests/test_periodic_snapshot.py`.
+
 ## [0.5.10] — 2026-07-13
 ### Changed
 - **`restore_now` now supports a response** (`supports_response: optional`):

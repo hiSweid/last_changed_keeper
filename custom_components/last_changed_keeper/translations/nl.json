@@ -7,8 +7,11 @@
         "data": {
           "domains": "Domeinen",
           "entities": "Extra losse entiteiten",
+          "labels": "Labels",
+          "areas": "Ruimtes",
           "exclude": "Uitgesloten entiteiten",
           "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
+          "snapshot_interval": "Periodieke momentopname elke (seconden, 0 = uit)",
           "restore_last_updated": "Ook last_updated herstellen",
           "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
         }
@@ -19,8 +22,11 @@
         "data": {
           "domains": "Domeinen",
           "entities": "Extra losse entiteiten",
+          "labels": "Labels",
+          "areas": "Ruimtes",
           "exclude": "Uitgesloten entiteiten",
           "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
+          "snapshot_interval": "Periodieke momentopname elke (seconden, 0 = uit)",
           "restore_last_updated": "Ook last_updated herstellen",
           "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
         }
@@ -44,8 +50,11 @@
         "data": {
           "domains": "Domeinen",
           "entities": "Extra losse entiteiten",
+          "labels": "Labels",
+          "areas": "Ruimtes",
           "exclude": "Uitgesloten entiteiten",
           "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
+          "snapshot_interval": "Periodieke momentopname elke (seconden, 0 = uit)",
           "restore_last_updated": "Ook last_updated herstellen",
           "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
         }

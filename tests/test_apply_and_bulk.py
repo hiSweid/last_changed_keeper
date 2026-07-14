@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from custom_components.last_changed_keeper import _apply_last_changed
 
-BASE = datetime(2026, 6, 23, 4, 0, tzinfo=timezone.utc)
+BASE = datetime(2026, 6, 23, 4, 0, tzinfo=UTC)
 
 
 @dataclass

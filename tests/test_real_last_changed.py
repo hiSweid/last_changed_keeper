@@ -6,11 +6,11 @@ Run: `pytest` with `homeassistant` installed (e.g. via
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from custom_components.last_changed_keeper import _real_last_changed
 
-BASE = datetime(2026, 6, 23, 4, 0, tzinfo=timezone.utc)
+BASE = datetime(2026, 6, 23, 4, 0, tzinfo=UTC)
 
 
 @dataclass

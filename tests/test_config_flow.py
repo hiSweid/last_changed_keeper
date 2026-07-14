@@ -20,6 +20,7 @@ from custom_components.last_changed_keeper.const import (
     CONF_ENTITIES,
     CONF_EXCLUDE,
     CONF_GRACE,
+    CONF_LABELS,
     CONF_RETRY_DELAYS,
     DOMAIN,
 )
@@ -219,7 +220,8 @@ async def test_reconfigure_after_options_flow_actually_takes_effect(
     # Save via the options flow -> entry.options now holds every key.
     opt_init = await hass.config_entries.options.async_init(entry.entry_id)
     await hass.config_entries.options.async_configure(
-        opt_init["flow_id"], {CONF_DOMAINS: ["light"], CONF_ENTITIES: [], CONF_GRACE: 900}
+        opt_init["flow_id"],
+        {CONF_DOMAINS: ["light"], CONF_ENTITIES: [], CONF_GRACE: 900},
     )
     assert entry.options[CONF_GRACE] == 900
 
@@ -308,3 +310,55 @@ async def test_user_flow_invalid_retry_delays_shows_error(
     )
     assert result2["type"] == FlowResultType.FORM
     assert result2["errors"] == {CONF_RETRY_DELAYS: "invalid_retry_delays"}
+
+
+# ----- Labels/areas: schema fields + not-empty via labels/areas alone ------
+
+
+def test_build_schema_includes_labels_areas_and_snapshot_interval(
+    hass: HomeAssistant,
+) -> None:
+    schema = _build_schema(hass, {})
+    field_names = {str(key) for key in schema.schema}
+    assert {"labels", "areas", "snapshot_interval"} <= field_names
+
+
+async def test_count_targets_zero_for_empty_selection_incl_labels_areas(
+    hass: HomeAssistant,
+) -> None:
+    assert _count_targets(hass, [], [], [], [], []) == 0
+
+
+async def test_is_empty_false_when_a_labeled_entity_exists(
+    hass: HomeAssistant,
+) -> None:
+    from homeassistant.helpers import entity_registry as er
+    from homeassistant.helpers import label_registry as lr
+
+    label = lr.async_get(hass).async_create("keep-present")
+    entry = er.async_get(hass).async_get_or_create("light", "test", "kitchen")
+    er.async_get(hass).async_update_entity(entry.entity_id, labels={label.label_id})
+    hass.states.async_set(entry.entity_id, "on")
+
+    assert (
+        _is_empty(
+            hass,
+            {CONF_DOMAINS: [], CONF_ENTITIES: [], CONF_LABELS: [label.label_id]},
+        )
+        is False
+    )
+
+
+async def test_is_empty_true_when_label_matches_nothing(
+    hass: HomeAssistant,
+) -> None:
+    from homeassistant.helpers import label_registry as lr
+
+    label = lr.async_get(hass).async_create("keep-unused")
+    assert (
+        _is_empty(
+            hass,
+            {CONF_DOMAINS: [], CONF_ENTITIES: [], CONF_LABELS: [label.label_id]},
+        )
+        is True
+    )
