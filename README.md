@@ -31,8 +31,10 @@ overwritten. Cost is near zero: a short burst at boot, then idle.
 
 ## Installation (HACS)
 
-1. HACS → Integrations → ⋮ → *Custom repositories* → this repo, category
-   *Integration*.
+[![Open in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hiSweid&repository=last_changed_keeper&category=integration)
+
+1. Click the badge above (or HACS → Integrations → ⋮ → *Custom repositories* →
+   this repo, category *Integration*).
 2. Install, restart Home Assistant.
 3. *Settings → Devices & Services → Add Integration* → "Last Changed Keeper".
 
