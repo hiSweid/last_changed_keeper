@@ -56,7 +56,7 @@ restore pass right after boot.
 
 ## Known limitations
 
-- Requires the `recorder` integration (hard dependency); setup fails without it.
+- Requires the [`recorder`](https://www.home-assistant.io/integrations/recorder/) integration — nothing to install, it ships with Home Assistant and is on by default unless you've explicitly removed it; setup fails without it.
 - Entities added after boot are only picked up on the *next* restart, not
   retroactively — a state genuinely changing while HA was down cannot be
   distinguished from a snapshot/recorder entry for the old value.
