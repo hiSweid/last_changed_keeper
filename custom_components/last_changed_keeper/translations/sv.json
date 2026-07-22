@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Last Changed Keeper",
+        "description": "Återställer den verkliga tiden för 'senast ändrad' för de valda entiteterna från recorder efter en omstart. Verkar direkt på själva entiteten. Det aktuella urvalet omfattar {count} entiteter.",
+        "data": {
+          "domains": "Domäner",
+          "entities": "Ytterligare enskilda entiteter",
+          "labels": "Etiketter",
+          "areas": "Områden",
+          "exclude": "Uteslutna entiteter",
+          "grace_seconds": "Uppdatera endast om last_changed är yngre än (sekunder)",
+          "snapshot_interval": "Periodisk ögonblicksbild var (sekunder, 0 = av)",
+          "restore_last_updated": "Återställ även last_updated",
+          "restore_last_triggered": "Återställ även last_triggered för automatiseringar/skript",
+          "retry_delays": "Fördröjningar för nya försök i sekunder (kommaseparerade)"
+        }
+      },
+      "reconfigure": {
+        "title": "Konfigurera om Last Changed Keeper",
+        "description": "Justera urvalet. Det aktuella urvalet omfattar {count} entiteter.",
+        "data": {
+          "domains": "Domäner",
+          "entities": "Ytterligare enskilda entiteter",
+          "labels": "Etiketter",
+          "areas": "Områden",
+          "exclude": "Uteslutna entiteter",
+          "grace_seconds": "Uppdatera endast om last_changed är yngre än (sekunder)",
+          "snapshot_interval": "Periodisk ögonblicksbild var (sekunder, 0 = av)",
+          "restore_last_updated": "Återställ även last_updated",
+          "restore_last_triggered": "Återställ även last_triggered för automatiseringar/skript",
+          "retry_delays": "Fördröjningar för nya försök i sekunder (kommaseparerade)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Välj minst en domän eller en entitet.",
+      "invalid_retry_delays": "Fördröjningar för nya försök måste vara kommaseparerade heltalssekunder mellan 1 och 3600 (t.ex. 30, 90, 180)."
+    },
+    "abort": {
+      "already_configured": "Last Changed Keeper är redan konfigurerad.",
+      "single_instance_allowed": "Last Changed Keeper är redan konfigurerad.",
+      "reconfigure_successful": "Omkonfigureringen lyckades."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last Changed Keeper – ändra urval",
+        "description": "Det aktuella urvalet omfattar {count} entiteter.",
+        "data": {
+          "domains": "Domäner",
+          "entities": "Ytterligare enskilda entiteter",
+          "labels": "Etiketter",
+          "areas": "Områden",
+          "exclude": "Uteslutna entiteter",
+          "grace_seconds": "Uppdatera endast om last_changed är yngre än (sekunder)",
+          "snapshot_interval": "Periodisk ögonblicksbild var (sekunder, 0 = av)",
+          "restore_last_updated": "Återställ även last_updated",
+          "restore_last_triggered": "Återställ även last_triggered för automatiseringar/skript",
+          "retry_delays": "Fördröjningar för nya försök i sekunder (kommaseparerade)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Välj minst en domän eller en entitet.",
+      "invalid_retry_delays": "Fördröjningar för nya försök måste vara kommaseparerade heltalssekunder mellan 1 och 3600 (t.ex. 30, 90, 180)."
+    }
+  },
+  "services": {
+    "restore_now": {
+      "name": "Återställ nu",
+      "description": "Kör omedelbart en återställningsomgång och skriver tillbaka det verkliga last_changed för alla just nu färska entiteter."
+    },
+    "verify": {
+      "name": "Verifiera",
+      "description": "Jämför det aktuella last_changed för varje övervakad entitet med det 'verkliga' värdet som härletts från recorder/lagret, utan att ändra något. Returnerar eventuella avvikelser — användbart för att felsöka rapporter om att 'värdet stämmer inte'."
+    }
+  },
+  "issues": {
+    "incompatible_state_cache": {
+      "title": "Last Changed Keeper: inkompatibel HA-version",
+      "description": "Den interna tillståndscachestrukturen för denna Home Assistant-version känns inte igen. last_changed sätts ändå, men gränssnittet kan kortvarigt visa det gamla värdet. Kontrollera om det finns en uppdatering av integrationen eller rapportera ett problem."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper är inte konfigurerad eller inte inläst."
+    },
+    "restore_failed": {
+      "message": "Återställningsomgången misslyckades. Se loggen för detaljer."
+    },
+    "verify_failed": {
+      "message": "Verifieringen misslyckades. Se loggen för detaljer."
+    }
+  }
+}

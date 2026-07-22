@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Last Changed Keeper",
+        "description": "Gendanner den virkelige 'sidst ændret'-tid for de valgte entiteter fra recorder efter en genstart. Virker direkte på selve entiteten. Det aktuelle udvalg omfatter {count} entiteter.",
+        "data": {
+          "domains": "Domæner",
+          "entities": "Yderligere individuelle entiteter",
+          "labels": "Mærkater",
+          "areas": "Områder",
+          "exclude": "Ekskluderede entiteter",
+          "grace_seconds": "Opdér kun hvis last_changed er yngre end (sekunder)",
+          "snapshot_interval": "Periodisk øjebliksbillede hvert (sekund, 0 = fra)",
+          "restore_last_updated": "Gendan også last_updated",
+          "restore_last_triggered": "Gendan også last_triggered for automatiseringer/scripts",
+          "retry_delays": "Forsinkelser for nyt forsøg i sekunder (kommasepareret)"
+        }
+      },
+      "reconfigure": {
+        "title": "Genkonfigurer Last Changed Keeper",
+        "description": "Justér udvalget. Det aktuelle udvalg omfatter {count} entiteter.",
+        "data": {
+          "domains": "Domæner",
+          "entities": "Yderligere individuelle entiteter",
+          "labels": "Mærkater",
+          "areas": "Områder",
+          "exclude": "Ekskluderede entiteter",
+          "grace_seconds": "Opdér kun hvis last_changed er yngre end (sekunder)",
+          "snapshot_interval": "Periodisk øjebliksbillede hvert (sekund, 0 = fra)",
+          "restore_last_updated": "Gendan også last_updated",
+          "restore_last_triggered": "Gendan også last_triggered for automatiseringer/scripts",
+          "retry_delays": "Forsinkelser for nyt forsøg i sekunder (kommasepareret)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Vælg mindst ét domæne eller én entitet.",
+      "invalid_retry_delays": "Forsinkelser for nyt forsøg skal være kommaseparerede hele sekunder mellem 1 og 3600 (f.eks. 30, 90, 180)."
+    },
+    "abort": {
+      "already_configured": "Last Changed Keeper er allerede konfigureret.",
+      "single_instance_allowed": "Last Changed Keeper er allerede konfigureret.",
+      "reconfigure_successful": "Genkonfigurationen lykkedes."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last Changed Keeper – skift udvalg",
+        "description": "Det aktuelle udvalg omfatter {count} entiteter.",
+        "data": {
+          "domains": "Domæner",
+          "entities": "Yderligere individuelle entiteter",
+          "labels": "Mærkater",
+          "areas": "Områder",
+          "exclude": "Ekskluderede entiteter",
+          "grace_seconds": "Opdér kun hvis last_changed er yngre end (sekunder)",
+          "snapshot_interval": "Periodisk øjebliksbillede hvert (sekund, 0 = fra)",
+          "restore_last_updated": "Gendan også last_updated",
+          "restore_last_triggered": "Gendan også last_triggered for automatiseringer/scripts",
+          "retry_delays": "Forsinkelser for nyt forsøg i sekunder (kommasepareret)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Vælg mindst ét domæne eller én entitet.",
+      "invalid_retry_delays": "Forsinkelser for nyt forsøg skal være kommaseparerede hele sekunder mellem 1 og 3600 (f.eks. 30, 90, 180)."
+    }
+  },
+  "services": {
+    "restore_now": {
+      "name": "Gendan nu",
+      "description": "Kører øjeblikkeligt en gendannelsesrunde og skriver den virkelige last_changed tilbage for alle aktuelt friske entiteter."
+    },
+    "verify": {
+      "name": "Verificér",
+      "description": "Sammenligner det aktuelle last_changed for hver overvåget entitet med den 'virkelige' værdi udledt fra recorder/lageret, uden at ændre noget. Returnerer eventuelle uoverensstemmelser — nyttigt til at diagnosticere rapporter om at 'værdien er forkert'."
+    }
+  },
+  "issues": {
+    "incompatible_state_cache": {
+      "title": "Last Changed Keeper: inkompatibel HA-version",
+      "description": "Den interne state-cache-struktur i denne Home Assistant-version genkendes ikke. last_changed bliver stadig sat, men frontend kan kortvarigt vise den gamle værdi. Tjek venligst for en opdatering af integrationen, eller rapportér et problem."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper er ikke konfigureret eller ikke indlæst."
+    },
+    "restore_failed": {
+      "message": "Gendannelsesrunden mislykkedes. Se loggen for detaljer."
+    },
+    "verify_failed": {
+      "message": "Verifikationen mislykkedes. Se loggen for detaljer."
+    }
+  }
+}

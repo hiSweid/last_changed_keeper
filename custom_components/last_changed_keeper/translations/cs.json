@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Last Changed Keeper",
+        "description": "Po restartu obnoví skutečný čas 'naposledy změněno' u vybraných entit z rekordéru (recorder). Působí přímo na danou entitu. Aktuální výběr zahrnuje {count} entit.",
+        "data": {
+          "domains": "Domény",
+          "entities": "Další jednotlivé entity",
+          "labels": "Štítky",
+          "areas": "Oblasti",
+          "exclude": "Vyloučené entity",
+          "grace_seconds": "Opravit pouze pokud je last_changed mladší než (sekundy)",
+          "snapshot_interval": "Pravidelný snímek každých (sekund, 0 = vypnuto)",
+          "restore_last_updated": "Obnovit také last_updated",
+          "restore_last_triggered": "Obnovit také last_triggered automatizací/skriptů",
+          "retry_delays": "Prodlevy opakování ve vteřinách (oddělené čárkami)"
+        }
+      },
+      "reconfigure": {
+        "title": "Znovu nakonfigurovat Last Changed Keeper",
+        "description": "Upravte výběr. Aktuální výběr zahrnuje {count} entit.",
+        "data": {
+          "domains": "Domény",
+          "entities": "Další jednotlivé entity",
+          "labels": "Štítky",
+          "areas": "Oblasti",
+          "exclude": "Vyloučené entity",
+          "grace_seconds": "Opravit pouze pokud je last_changed mladší než (sekundy)",
+          "snapshot_interval": "Pravidelný snímek každých (sekund, 0 = vypnuto)",
+          "restore_last_updated": "Obnovit také last_updated",
+          "restore_last_triggered": "Obnovit také last_triggered automatizací/skriptů",
+          "retry_delays": "Prodlevy opakování ve vteřinách (oddělené čárkami)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Vyberte prosím alespoň jednu doménu nebo entitu.",
+      "invalid_retry_delays": "Prodlevy opakování musí být celé sekundy oddělené čárkami v rozsahu 1 až 3600 (např. 30, 90, 180)."
+    },
+    "abort": {
+      "already_configured": "Last Changed Keeper je již nakonfigurován.",
+      "single_instance_allowed": "Last Changed Keeper je již nakonfigurován.",
+      "reconfigure_successful": "Rekonfigurace proběhla úspěšně."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last Changed Keeper – změnit výběr",
+        "description": "Aktuální výběr zahrnuje {count} entit.",
+        "data": {
+          "domains": "Domény",
+          "entities": "Další jednotlivé entity",
+          "labels": "Štítky",
+          "areas": "Oblasti",
+          "exclude": "Vyloučené entity",
+          "grace_seconds": "Opravit pouze pokud je last_changed mladší než (sekundy)",
+          "snapshot_interval": "Pravidelný snímek každých (sekund, 0 = vypnuto)",
+          "restore_last_updated": "Obnovit také last_updated",
+          "restore_last_triggered": "Obnovit také last_triggered automatizací/skriptů",
+          "retry_delays": "Prodlevy opakování ve vteřinách (oddělené čárkami)"
+        }
+      }
+    },
+    "error": {
+      "empty_selection": "Vyberte prosím alespoň jednu doménu nebo entitu.",
+      "invalid_retry_delays": "Prodlevy opakování musí být celé sekundy oddělené čárkami v rozsahu 1 až 3600 (např. 30, 90, 180)."
+    }
+  },
+  "services": {
+    "restore_now": {
+      "name": "Obnovit nyní",
+      "description": "Okamžitě spustí obnovovací průchod a zapíše zpět skutečné last_changed pro všechny aktuálně čerstvé entity."
+    },
+    "verify": {
+      "name": "Ověřit",
+      "description": "Porovná aktuální last_changed každé sledované entity se „skutečnou“ hodnotou zjištěnou z rekordéru/úložiště, aniž by cokoliv opravoval. Vrátí nalezené nesrovnalosti – užitečné pro diagnostiku hlášení „hodnota nesedí“."
+    }
+  },
+  "issues": {
+    "incompatible_state_cache": {
+      "title": "Last Changed Keeper: nekompatibilní verze HA",
+      "description": "Vnitřní struktura stavové mezipaměti této verze Home Assistant nebyla rozpoznána. last_changed se přesto nastaví, ale frontend může krátce zobrazovat starou hodnotu. Zkontrolujte prosím aktualizaci integrace nebo nahlaste problém."
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Last Changed Keeper není nastaven nebo není načten."
+    },
+    "restore_failed": {
+      "message": "Obnovovací průchod selhal. Podrobnosti najdete v logu."
+    },
+    "verify_failed": {
+      "message": "Ověřovací průchod selhal. Podrobnosti najdete v logu."
+    }
+  }
+}
