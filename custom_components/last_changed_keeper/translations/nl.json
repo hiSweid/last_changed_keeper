@@ -13,6 +13,7 @@
           "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
           "snapshot_interval": "Periodieke momentopname elke (seconden, 0 = uit)",
           "restore_last_updated": "Ook last_updated herstellen",
+          "restore_last_triggered": "Ook last_triggered van automatiseringen/scripts herstellen",
           "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
         }
       },
@@ -28,6 +29,7 @@
           "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
           "snapshot_interval": "Periodieke momentopname elke (seconden, 0 = uit)",
           "restore_last_updated": "Ook last_updated herstellen",
+          "restore_last_triggered": "Ook last_triggered van automatiseringen/scripts herstellen",
           "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
         }
       }
@@ -56,6 +58,7 @@
           "grace_seconds": "Alleen patchen als last_changed jonger is dan (seconden)",
           "snapshot_interval": "Periodieke momentopname elke (seconden, 0 = uit)",
           "restore_last_updated": "Ook last_updated herstellen",
+          "restore_last_triggered": "Ook last_triggered van automatiseringen/scripts herstellen",
           "retry_delays": "Herhaalvertragingen in seconden (komma-gescheiden)"
         }
       }
@@ -69,6 +72,10 @@
     "restore_now": {
       "name": "Nu herstellen",
       "description": "Voert direct een herstelronde uit en schrijft de echte last_changed terug voor alle momenteel verse entiteiten."
+    },
+    "verify": {
+      "name": "Verifiëren",
+      "description": "Vergelijkt de huidige last_changed van elke bewaakte entiteit met de 'echte' waarde uit recorder/store, zonder iets aan te passen. Geeft gevonden afwijkingen terug — handig om meldingen als 'de waarde klopt niet' te onderzoeken."
     }
   },
   "issues": {
@@ -83,6 +90,9 @@
     },
     "restore_failed": {
       "message": "De herstelronde is mislukt. Bekijk het logboek voor details."
+    },
+    "verify_failed": {
+      "message": "De verificatie is mislukt. Bekijk het logboek voor details."
     }
   }
 }

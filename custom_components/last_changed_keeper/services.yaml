@@ -3,3 +3,9 @@ restore_now:
   description: >-
     Runs a restore pass immediately and writes back the real last_changed for all
     currently fresh entities.
+verify:
+  name: Verify
+  description: >-
+    Compares the live last_changed of every currently watched entity against the
+    value derived from the recorder/store, without patching anything. Returns any
+    mismatches found - useful for diagnosing "the value looks wrong" reports.

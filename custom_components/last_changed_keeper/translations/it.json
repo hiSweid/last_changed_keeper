@@ -13,6 +13,7 @@
           "grace_seconds": "Applica solo se last_changed è più recente di (secondi)",
           "snapshot_interval": "Snapshot periodico ogni (secondi, 0 = disattivato)",
           "restore_last_updated": "Ripristina anche last_updated",
+          "restore_last_triggered": "Ripristina anche last_triggered di automazioni/script",
           "retry_delays": "Ritardi di ripetizione in secondi (separati da virgole)"
         }
       },
@@ -28,6 +29,7 @@
           "grace_seconds": "Applica solo se last_changed è più recente di (secondi)",
           "snapshot_interval": "Snapshot periodico ogni (secondi, 0 = disattivato)",
           "restore_last_updated": "Ripristina anche last_updated",
+          "restore_last_triggered": "Ripristina anche last_triggered di automazioni/script",
           "retry_delays": "Ritardi di ripetizione in secondi (separati da virgole)"
         }
       }
@@ -56,6 +58,7 @@
           "grace_seconds": "Applica solo se last_changed è più recente di (secondi)",
           "snapshot_interval": "Snapshot periodico ogni (secondi, 0 = disattivato)",
           "restore_last_updated": "Ripristina anche last_updated",
+          "restore_last_triggered": "Ripristina anche last_triggered di automazioni/script",
           "retry_delays": "Ritardi di ripetizione in secondi (separati da virgole)"
         }
       }
@@ -69,6 +72,10 @@
     "restore_now": {
       "name": "Ripristina ora",
       "description": "Esegue subito un ciclo di ripristino e riscrive il last_changed reale per tutte le entità attualmente aggiornate."
+    },
+    "verify": {
+      "name": "Verifica",
+      "description": "Confronta il last_changed attuale di ogni entità monitorata con il valore «reale» determinato da recorder/archivio, senza applicare alcuna modifica. Restituisce le discrepanze trovate: utile per diagnosticare segnalazioni «il valore non è corretto»."
     }
   },
   "issues": {
@@ -83,6 +90,9 @@
     },
     "restore_failed": {
       "message": "Il passaggio di ripristino non è riuscito. Controlla il log per i dettagli."
+    },
+    "verify_failed": {
+      "message": "La verifica non è riuscita. Controlla il log per i dettagli."
     }
   }
 }

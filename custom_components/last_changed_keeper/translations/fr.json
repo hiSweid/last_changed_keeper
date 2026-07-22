@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Last Changed Keeper",
-        "description": "Restaure l'heure réelle de « dernière modification » des entités sélectionnées depuis le recorder après un redémarrage. Agit directement sur l'entité elle-même. La sélection actuelle concerne {count} entités.",
+        "description": "Restaure l'heure réelle de « dernière modification » des entités sélectionnées depuis le recorder après un redémarrage. Agit directement sur l'entité elle-même. La sélection actuelle concerne {count} entités.",
         "data": {
           "domains": "Domaines",
           "entities": "Entités individuelles supplémentaires",
@@ -13,6 +13,7 @@
           "grace_seconds": "Patcher uniquement si last_changed est plus récent que (secondes)",
           "snapshot_interval": "Instantané périodique toutes les (secondes, 0 = désactivé)",
           "restore_last_updated": "Restaurer aussi last_updated",
+          "restore_last_triggered": "Restaurer aussi last_triggered des automatisations/scripts",
           "retry_delays": "Délais de relance en secondes (séparés par des virgules)"
         }
       },
@@ -28,6 +29,7 @@
           "grace_seconds": "Patcher uniquement si last_changed est plus récent que (secondes)",
           "snapshot_interval": "Instantané périodique toutes les (secondes, 0 = désactivé)",
           "restore_last_updated": "Restaurer aussi last_updated",
+          "restore_last_triggered": "Restaurer aussi last_triggered des automatisations/scripts",
           "retry_delays": "Délais de relance en secondes (séparés par des virgules)"
         }
       }
@@ -56,6 +58,7 @@
           "grace_seconds": "Patcher uniquement si last_changed est plus récent que (secondes)",
           "snapshot_interval": "Instantané périodique toutes les (secondes, 0 = désactivé)",
           "restore_last_updated": "Restaurer aussi last_updated",
+          "restore_last_triggered": "Restaurer aussi last_triggered des automatisations/scripts",
           "retry_delays": "Délais de relance en secondes (séparés par des virgules)"
         }
       }
@@ -69,6 +72,10 @@
     "restore_now": {
       "name": "Restaurer maintenant",
       "description": "Lance immédiatement une passe de restauration et réécrit le last_changed réel pour toutes les entités actuellement à jour."
+    },
+    "verify": {
+      "name": "Vérifier",
+      "description": "Compare le last_changed actuel de chaque entité surveillée à la valeur « réelle » déterminée à partir du recorder/store, sans rien corriger. Renvoie les écarts constatés — utile pour diagnostiquer les signalements « la valeur ne semble pas correcte »."
     }
   },
   "issues": {
@@ -83,6 +90,9 @@
     },
     "restore_failed": {
       "message": "La passe de restauration a échoué. Consultez le journal pour plus de détails."
+    },
+    "verify_failed": {
+      "message": "La vérification a échoué. Consultez le journal pour plus de détails."
     }
   }
 }

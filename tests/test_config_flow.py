@@ -323,6 +323,17 @@ def test_build_schema_includes_labels_areas_and_snapshot_interval(
     assert {"labels", "areas", "snapshot_interval"} <= field_names
 
 
+def test_build_schema_includes_restore_last_triggered_default_on(
+    hass: HomeAssistant,
+) -> None:
+    schema = _build_schema(hass, {})
+    for key in schema.schema:
+        if str(key) == "restore_last_triggered":
+            assert key.default() is True
+            return
+    raise AssertionError("restore_last_triggered field not found in schema")
+
+
 async def test_count_targets_zero_for_empty_selection_incl_labels_areas(
     hass: HomeAssistant,
 ) -> None:

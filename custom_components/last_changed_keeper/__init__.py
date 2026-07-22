@@ -5,13 +5,26 @@ Home Assistant restart — directly on the entity.
 
 Sources (in this order):
 1. Recorder bulk query (one query for all entities) — fast on startup.
-2. Recorder per-entity query (deeper) as a fallback for ambiguous cases.
-3. Snapshot store (written on the last shutdown) — if the recorder no longer has
-   the entity.
+2. Incremental/periodic store (see async_write_snapshot and
+   _on_target_state_changed) — preferred over the bulk result when it holds a
+   newer, still-usable timestamp for the same value (e.g. recorder commit
+   lag, or a change from between two periodic snapshots).
+3. Recorder per-entity query (deeper) as a fallback for ambiguous cases.
+4. Snapshot store alone — if the recorder no longer has the entity.
 
-Note: setting `last_changed` + invalidating the state cache uses internal HA
-structures. All accesses are defensively guarded; if the cache access fails, a
-repair issue is raised instead of crashing.
+`automation`/`script` entities additionally get their `last_triggered`
+attribute restored through a separate path (see _maybe_restore_last_triggered)
+— it's an attribute, not the state value, so it needs its own recorder read
+and its own apply mechanism.
+
+Entities that get fully re-registered at runtime (a config entry reload, a
+Zigbee/Z-Wave device rejoining) are caught the same way a restart is, via a
+persistent listener (see _setup_reregister_listener) independent of the
+boot-time pending/listener machinery.
+
+Note: setting `last_changed`/`last_triggered` + invalidating the state cache
+uses internal HA structures. All accesses are defensively guarded; if the
+cache access fails, a repair issue is raised instead of crashing.
 """
 from __future__ import annotations
 
@@ -19,6 +32,7 @@ import contextlib
 import logging
 from collections.abc import Iterable
 from datetime import datetime, timedelta
+from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.recorder import get_instance
@@ -53,8 +67,10 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
+from homeassistant.util.read_only_dict import ReadOnlyDict
 
 from .const import (
+    ATTR_LAST_TRIGGERED,
     BULK_WINDOW_DAYS,
     CONF_AREAS,
     CONF_DOMAINS,
@@ -62,21 +78,27 @@ from .const import (
     CONF_EXCLUDE,
     CONF_GRACE,
     CONF_LABELS,
+    CONF_RESTORE_LAST_TRIGGERED,
     CONF_RESTORE_LAST_UPDATED,
     CONF_RETRY_DELAYS,
     CONF_SNAPSHOT_INTERVAL,
     DEFAULT_DOMAINS,
     DEFAULT_GRACE,
+    DEFAULT_RESTORE_LAST_TRIGGERED,
     DEFAULT_RESTORE_LAST_UPDATED,
     DEFAULT_SNAPSHOT_INTERVAL,
     DOMAIN,
     EVENT_RESTORED,
     HISTORY_DEPTH,
+    INCREMENTAL_DEBOUNCE_SECONDS,
+    INCREMENTAL_MAX_WAIT_SECONDS,
     INVALID_STATES,
     ISSUE_INCOMPATIBLE,
+    LAST_TRIGGERED_DOMAINS,
     MARGIN_SECONDS,
     RETRY_DELAYS,
     SERVICE_RESTORE_NOW,
+    SERVICE_VERIFY,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -203,6 +225,31 @@ def _async_register_service(hass: HomeAssistant) -> None:
         supports_response=SupportsResponse.OPTIONAL,
     )
 
+    async def _handle_verify(call: ServiceCall) -> ServiceResponse:
+        entries: list[LckConfigEntry] = hass.config_entries.async_loaded_entries(
+            DOMAIN
+        )
+        if not entries:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="entry_not_loaded"
+            )
+        # single_config_entry: true, so there is exactly one entry/job.
+        job = entries[0].runtime_data
+        try:
+            return await job.async_verify()
+        except Exception as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="verify_failed"
+            ) from err
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_VERIFY,
+        _handle_verify,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+
 
 class _RestoreJob:
     """Encapsulates one restore run incl. listener, re-runs and snapshot."""
@@ -224,8 +271,19 @@ class _RestoreJob:
         self._unsub_timers: list[CALLBACK_TYPE] = []
         self._degraded = False
         self._also_updated = False
+        self._also_restore_triggered = False
         self._final_fired = False
         self.stats: dict[str, object] = {}
+
+        # ----- Feature: re-patch on runtime re-registration ---------------
+        self._unsub_reregister_listener: CALLBACK_TYPE | None = None
+        self._reregister_retry_timers: dict[str, list[CALLBACK_TYPE]] = {}
+
+        # ----- Feature: incremental runtime store --------------------------
+        self._unsub_incremental_listener: CALLBACK_TYPE | None = None
+        self._dirty: dict[str, dict[str, str]] = {}
+        self._dirty_since: datetime | None = None
+        self._flush_timer: CALLBACK_TYPE | None = None
 
     # ----- Configuration -------------------------------------------------
 
@@ -248,6 +306,13 @@ class _RestoreJob:
         data = {**self.entry.data, **self.entry.options}
         return bool(
             data.get(CONF_RESTORE_LAST_UPDATED, DEFAULT_RESTORE_LAST_UPDATED)
+        )
+
+    @property
+    def _restore_last_triggered_enabled(self) -> bool:
+        data = {**self.entry.data, **self.entry.options}
+        return bool(
+            data.get(CONF_RESTORE_LAST_TRIGGERED, DEFAULT_RESTORE_LAST_TRIGGERED)
         )
 
     @property
@@ -277,7 +342,26 @@ class _RestoreJob:
 
     @callback
     def shutdown(self) -> None:
-        """Cancel listener and timers (on unload/reload)."""
+        """Cancel everything (on unload/reload): boot machinery, the
+        persistent re-registration listener/retries, and the incremental
+        store listener/timer."""
+        self._stop_boot_machinery()
+        self._stop_reregister_listener()
+        self._cancel_all_reregister_retries()
+        self._stop_incremental_listener()
+        self._cancel_flush_timer()
+        self._dirty.clear()
+        self._dirty_since = None
+
+    @callback
+    def _stop_boot_machinery(self) -> None:
+        """Cancel only the boot-pass-specific listener/timers.
+
+        Kept separate from shutdown() because _cleanup_if_done() calls this
+        once the boot pending set drains — that must not also tear down the
+        persistent re-registration/incremental-store listeners, which live
+        for the whole entry lifetime, not just the boot pass.
+        """
         self._stop_listener()
         for cancel in self._unsub_timers:
             cancel()
@@ -288,6 +372,31 @@ class _RestoreJob:
         if self._unsub_listener is not None:
             self._unsub_listener()
             self._unsub_listener = None
+
+    @callback
+    def _stop_reregister_listener(self) -> None:
+        if self._unsub_reregister_listener is not None:
+            self._unsub_reregister_listener()
+            self._unsub_reregister_listener = None
+
+    @callback
+    def _cancel_all_reregister_retries(self) -> None:
+        for timers in self._reregister_retry_timers.values():
+            for cancel in timers:
+                cancel()
+        self._reregister_retry_timers.clear()
+
+    @callback
+    def _stop_incremental_listener(self) -> None:
+        if self._unsub_incremental_listener is not None:
+            self._unsub_incremental_listener()
+            self._unsub_incremental_listener = None
+
+    @callback
+    def _cancel_flush_timer(self) -> None:
+        if self._flush_timer is not None:
+            self._flush_timer()
+            self._flush_timer = None
 
     # ----- Snapshot ------------------------------------------------------
 
@@ -310,6 +419,11 @@ class _RestoreJob:
             if live is not None and live.state not in INVALID_STATES:
                 data[entity_id] = {"s": live.state, "t": live.last_changed.isoformat()}
         await self._store.async_save(data)
+        # Keep the in-memory copy in sync with what's on disk: this is also
+        # what naturally bounds the incremental store's size (see
+        # _flush_dirty) — any entity no longer in current targets is dropped
+        # here instead of lingering forever.
+        self._snapshot = data
         _LOGGER.debug("Wrote snapshot with %d entries", len(data))
 
     # ----- Main run ------------------------------------------------------
@@ -336,10 +450,17 @@ class _RestoreJob:
         self.shutdown()
         self._degraded = False
         self._also_updated = self._restore_last_updated_enabled
+        self._also_restore_triggered = self._restore_last_triggered_enabled
         domains, entities, exclude, grace, labels, areas = self._config
         targets = self._targets(domains, entities, exclude, labels, areas)
         if not targets:
             return 0
+
+        # Persistent, entry-lifetime listeners (independent of the boot
+        # pending/listener machinery below, and not torn down when the boot
+        # pass settles — see _stop_boot_machinery vs shutdown()).
+        self._setup_reregister_listener(targets)
+        self._setup_incremental_listener(targets)
 
         self._startup = dt_util.utcnow()
         self._pending = set()
@@ -359,6 +480,7 @@ class _RestoreJob:
         bulk = await self._bulk_fetch(candidates) if candidates else {}
 
         patched = 0
+        patched_triggered = 0
         for entity_id in candidates:
             # Re-validate: the bulk query above awaited the recorder executor,
             # during which this entity may have gone unavailable or genuinely
@@ -370,6 +492,8 @@ class _RestoreJob:
                 continue
             if (dt_util.utcnow() - live.last_changed).total_seconds() > grace:
                 continue  # changed for real while we were awaiting the query
+            if await self._maybe_restore_last_triggered(entity_id):
+                patched_triggered += 1
             ts = await self._resolve(entity_id, live, bulk.get(entity_id))
             if ts is not None:
                 self._apply(live, ts, entity_id)
@@ -387,6 +511,7 @@ class _RestoreJob:
             "bulk_entities": len(bulk),
             "patched_immediate": patched,
             "patched_total": patched,
+            "patched_last_triggered": patched_triggered,
             "pending": len(self._pending),
             "snapshot_entries": len(self._snapshot),
             "degraded": self._degraded,
@@ -479,6 +604,9 @@ class _RestoreJob:
             return False
         if (dt_util.utcnow() - live.last_changed).total_seconds() > grace:
             return False
+        # Independent side effect: does not affect the pending/return-value
+        # contract below, which is about last_changed resolution only.
+        await self._maybe_restore_last_triggered(entity_id)
         ts = await self._resolve(entity_id, live, None)
         if ts is None:
             return False
@@ -491,7 +619,7 @@ class _RestoreJob:
     def _cleanup_if_done(self) -> None:
         if not self._pending:
             self._fire_restored_event(final=True)
-            self.shutdown()
+            self._stop_boot_machinery()
 
     @callback
     def _fire_restored_event(self, *, final: bool) -> None:
@@ -534,7 +662,18 @@ class _RestoreJob:
                 # value genuinely changed at run_start. If that's not old
                 # enough to clear the margin, the value just changed for
                 # real — no other (older/staler) source may override it.
-                return bulk_ts if _ok(bulk_ts) else None
+                if not _ok(bulk_ts):
+                    return None
+                # The incrementally-updated runtime store (see
+                # async_write_snapshot / _on_target_state_changed) can hold a
+                # timestamp newer than what the bulk query sees — e.g.
+                # recorder commit lag, or a change from between two periodic
+                # snapshots. Prefer it over the bulk answer when it is both
+                # usable and more recent for the same value.
+                newer_snap = self._newer_snapshot_ts(entity_id, live.state, bulk_ts)
+                if newer_snap is not None and _ok(newer_snap):
+                    return newer_snap
+                return bulk_ts
 
         # 2. Snapshot (free, in memory, authoritative) — before the costly
         # query. Only usable if the entity still holds the SAME value as at
@@ -571,6 +710,20 @@ class _RestoreJob:
             return bulk_ts
         return None
 
+    def _newer_snapshot_ts(
+        self, entity_id: str, state: str, than: datetime
+    ) -> datetime | None:
+        """Store timestamp for entity_id/state if present and newer than
+        `than`, else None. Used to let a fresher incremental-store value win
+        over an otherwise-definitive bulk result (see _resolve step 1)."""
+        snap = self._snapshot.get(entity_id)
+        if not isinstance(snap, dict) or snap.get("s") != state:
+            return None
+        snap_dt = dt_util.parse_datetime(snap.get("t", ""))
+        if snap_dt is not None and snap_dt > than:
+            return snap_dt
+        return None
+
     async def _bulk_fetch(self, entity_ids: list[str]) -> dict[str, list]:
         """One recorder query for all candidates over the bulk window."""
         start = dt_util.utcnow() - timedelta(days=BULK_WINDOW_DAYS)
@@ -597,6 +750,231 @@ class _RestoreJob:
                 translation_key=ISSUE_INCOMPATIBLE,
             )
         _LOGGER.debug("%s: last_changed -> %s", entity_id, ts.isoformat())
+
+    # ----- last_triggered (automation/script) -----------------------------
+
+    async def _maybe_restore_last_triggered(self, entity_id: str) -> bool:
+        """Separate patch path for automation.*/script.* `last_triggered`.
+
+        `last_triggered` is an attribute, not the state value, so it needs
+        its own recorder read (_resolve_last_triggered) and its own apply
+        mechanism (_apply_last_triggered) instead of the last_changed/
+        state-value logic above. automation/script entities normally restore
+        this themselves via their own RestoreEntity hook; this is a
+        best-effort correction for when that didn't happen (crash, purged
+        restore-state cache, long outage, ...). A no-op whenever the entity
+        already has a value.
+        """
+        if not self._also_restore_triggered:
+            return False
+        if entity_id.split(".", 1)[0] not in LAST_TRIGGERED_DOMAINS:
+            return False
+        live = self.hass.states.get(entity_id)
+        if live is None or live.state in INVALID_STATES:
+            return False
+        if live.attributes.get(ATTR_LAST_TRIGGERED) is not None:
+            return False  # already set (own restore worked, or genuinely unset)
+        ts = await self._resolve_last_triggered(entity_id)
+        if ts is None:
+            return False
+        ok = _apply_last_triggered(live, ts)
+        if not ok and not self._degraded:
+            self._degraded = True
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                ISSUE_INCOMPATIBLE,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=ISSUE_INCOMPATIBLE,
+            )
+        _LOGGER.debug("%s: last_triggered -> %s", entity_id, ts.isoformat())
+        return ok
+
+    async def _resolve_last_triggered(self, entity_id: str) -> datetime | None:
+        """Newest last_triggered attribute value recorded for entity_id."""
+        try:
+            history = await get_instance(self.hass).async_add_executor_job(
+                get_last_state_changes, self.hass, HISTORY_DEPTH, entity_id
+            )
+        except Exception as err:  # noqa: BLE001 - recorder must not kill anything
+            _LOGGER.debug("last_triggered query for %s failed: %s", entity_id, err)
+            return None
+        states = sorted(
+            history.get(entity_id, []), key=lambda s: s.last_updated, reverse=True
+        )
+        for s in states:
+            raw = s.attributes.get(ATTR_LAST_TRIGGERED)
+            if not raw:
+                continue
+            ts = raw if isinstance(raw, datetime) else dt_util.parse_datetime(str(raw))
+            if ts is not None:
+                return ts
+        return None
+
+    # ----- Re-patch on runtime re-registration -----------------------------
+
+    @callback
+    def _setup_reregister_listener(self, targets: set[str]) -> None:
+        """Persistent listener (entry lifetime, not just the boot pass) for
+        an already-watched entity being fully re-created (old_state is
+        None) after boot — e.g. its owning config entry reloads, or a
+        Zigbee/Z-Wave device rejoins — which resets last_changed to "now"
+        the same way a full HA restart does. Registered after boot has
+        already assigned every entity its initial state, so it never fires
+        for that initial assignment."""
+        self._unsub_reregister_listener = async_track_state_change_event(
+            self.hass, list(targets), self._on_entity_reregistered
+        )
+
+    @callback
+    def _on_entity_reregistered(self, event: Event) -> None:
+        if event.data.get("old_state") is not None:
+            return  # not a full re-registration
+        new = event.data.get("new_state")
+        if new is None or new.state in INVALID_STATES:
+            return
+        entity_id = new.entity_id
+        if entity_id in self._pending:
+            return  # already handled by the active boot-time pass
+        _, _, _, grace, _, _ = self._config
+        if (dt_util.utcnow() - new.last_changed).total_seconds() > grace:
+            return
+        self.hass.async_create_task(self._patch_reregistered(entity_id, grace))
+
+    async def _patch_reregistered(self, entity_id: str, grace: float) -> bool:
+        """Entry point for a fresh re-registration event: drops any retries
+        still scheduled from a previous flap of the same entity, then makes
+        one attempt right away."""
+        self._cancel_reregister_retry(entity_id)
+        return await self._attempt_reregister_patch(entity_id, grace)
+
+    async def _attempt_reregister_patch(self, entity_id: str, grace: float) -> bool:
+        """One targeted, per-entity re-patch attempt (no bulk query — this
+        is for a single entity, not a full boot pass). Also attempts the
+        last_triggered path. On failure, schedules retries using the same
+        retry_delays as the boot pass, respecting the same grace window."""
+        live = self.hass.states.get(entity_id)
+        if live is None or live.state in INVALID_STATES:
+            return False
+        if (dt_util.utcnow() - live.last_changed).total_seconds() > grace:
+            return False
+        await self._maybe_restore_last_triggered(entity_id)
+        ts = await self._resolve(entity_id, live, None)
+        if ts is None:
+            self._schedule_reregister_retries(entity_id, grace)
+            return False
+        self._apply(live, ts, entity_id)
+        _LOGGER.debug("%s: re-patched after runtime re-registration", entity_id)
+        return True
+
+    @callback
+    def _cancel_reregister_retry(self, entity_id: str) -> None:
+        for cancel in self._reregister_retry_timers.pop(entity_id, []):
+            cancel()
+
+    @callback
+    def _schedule_reregister_retries(self, entity_id: str, grace: float) -> None:
+        def _make(delay: int) -> CALLBACK_TYPE:
+            @callback
+            def _fire(_now) -> None:
+                self.hass.async_create_task(
+                    self._attempt_reregister_patch(entity_id, grace)
+                )
+
+            return async_call_later(self.hass, delay, _fire)
+
+        self._reregister_retry_timers[entity_id] = [
+            _make(d) for d in self._retry_delays
+        ]
+
+    # ----- Incremental runtime store ---------------------------------------
+
+    @callback
+    def _setup_incremental_listener(self, targets: set[str]) -> None:
+        """Persistent listener (entry lifetime) that debounce-merges every
+        genuine value change of a watched entity into the same store used
+        for the periodic/shutdown snapshot — see _on_target_state_changed."""
+        self._unsub_incremental_listener = async_track_state_change_event(
+            self.hass, list(targets), self._on_target_state_changed
+        )
+
+    @callback
+    def _on_target_state_changed(self, event: Event) -> None:
+        """Debounced incremental merge into the snapshot store: keeps the
+        stored last_changed close to real-time instead of only updating it
+        every snapshot_interval / on shutdown — without re-deriving the
+        whole store on every single change (see async_write_snapshot).
+
+        Restricted to genuine value transitions (old_state present and
+        actually different) — re-registrations (old_state is None, handled
+        by the re-registration listener above) and attribute-only "chatter"
+        (same state value, e.g. climate current_temperature) are ignored, so
+        one noisy entity can't perpetually starve the debounce for others.
+        """
+        old = event.data.get("old_state")
+        new = event.data.get("new_state")
+        if old is None or new is None:
+            return
+        if new.state in INVALID_STATES or old.state == new.state:
+            return
+        self._dirty[new.entity_id] = {
+            "s": new.state,
+            "t": new.last_changed.isoformat(),
+        }
+        now = dt_util.utcnow()
+        if self._dirty_since is None:
+            self._dirty_since = now
+        self._cancel_flush_timer()
+        if (now - self._dirty_since).total_seconds() >= INCREMENTAL_MAX_WAIT_SECONDS:
+            self._flush_dirty()
+        else:
+            self._flush_timer = async_call_later(
+                self.hass, INCREMENTAL_DEBOUNCE_SECONDS, self._flush_dirty
+            )
+
+    @callback
+    def _flush_dirty(self, _now: datetime | None = None) -> None:
+        self._cancel_flush_timer()
+        self._dirty_since = None
+        if not self._dirty:
+            return
+        dirty, self._dirty = self._dirty, {}
+        self._snapshot.update(dirty)
+        self.hass.async_create_task(self._store.async_save(dict(self._snapshot)))
+        _LOGGER.debug("Incremental store: merged %d entities", len(dirty))
+
+    # ----- Verify (diagnostic only, never patches) --------------------------
+
+    async def async_verify(self) -> dict[str, Any]:
+        """Compare live last_changed against the recorder/store-derived real
+        value for every current target, without patching anything. Returns
+        the entities where they deviate — useful for diagnosing "the value
+        looks wrong" reports without having to reason through the resolve
+        chain by hand."""
+        domains, entities, exclude, _, labels, areas = self._config
+        entity_ids = sorted(self._targets(domains, entities, exclude, labels, areas))
+        bulk = await self._bulk_fetch(entity_ids) if entity_ids else {}
+
+        mismatches: list[dict[str, Any]] = []
+        for entity_id in entity_ids:
+            live = self.hass.states.get(entity_id)
+            if live is None or live.state in INVALID_STATES:
+                continue
+            expected = await self._resolve(entity_id, live, bulk.get(entity_id))
+            if expected is None:
+                continue
+            diff = (live.last_changed - expected).total_seconds()
+            if abs(diff) > MARGIN_SECONDS:
+                mismatches.append(
+                    {
+                        "entity_id": entity_id,
+                        "live_last_changed": live.last_changed.isoformat(),
+                        "expected_last_changed": expected.isoformat(),
+                        "diff_seconds": round(diff, 1),
+                    }
+                )
+        return {"checked": len(entity_ids), "mismatches": mismatches}
 
 
 def resolve_targets(
@@ -747,6 +1125,35 @@ def _apply_last_changed(
                 state.last_updated_timestamp = ts.timestamp()
     except (AttributeError, TypeError) as err:
         _LOGGER.warning("Could not set last_changed (HA version?): %s", err)
+        return False
+    cache = getattr(state, "_cache", None)
+    if isinstance(cache, dict):
+        cache.clear()
+        return True
+    return False
+
+
+@callback
+def _apply_last_triggered(state: State, ts: datetime) -> bool:
+    """Patch the last_triggered attribute directly on the live state.
+
+    Unlike _apply_last_changed (a dedicated State slot), this touches
+    `attributes` (a ReadOnlyDict) — automation/script entities normally
+    manage last_triggered themselves and usually restore it fine via their
+    own RestoreEntity hook; this is a best-effort correction for when that
+    didn't happen. A later genuine trigger (or the entity's own restore path
+    succeeding on a subsequent reload) simply overwrites it again, same as
+    any other attribute.
+
+    Returns True when fully applied (incl. cache invalidation). False =
+    degraded (value set, but cache structure unknown) or error.
+    """
+    try:
+        state.attributes = ReadOnlyDict(
+            {**state.attributes, ATTR_LAST_TRIGGERED: ts.isoformat()}
+        )
+    except (AttributeError, TypeError) as err:
+        _LOGGER.warning("Could not set last_triggered (HA version?): %s", err)
         return False
     cache = getattr(state, "_cache", None)
     if isinstance(cache, dict):

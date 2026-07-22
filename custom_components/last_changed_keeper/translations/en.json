@@ -13,6 +13,7 @@
           "grace_seconds": "Only patch if last_changed is younger than (seconds)",
           "snapshot_interval": "Periodic snapshot every (seconds, 0 = off)",
           "restore_last_updated": "Also restore last_updated",
+          "restore_last_triggered": "Also restore automation/script last_triggered",
           "retry_delays": "Retry delays in seconds (comma-separated)"
         }
       },
@@ -28,6 +29,7 @@
           "grace_seconds": "Only patch if last_changed is younger than (seconds)",
           "snapshot_interval": "Periodic snapshot every (seconds, 0 = off)",
           "restore_last_updated": "Also restore last_updated",
+          "restore_last_triggered": "Also restore automation/script last_triggered",
           "retry_delays": "Retry delays in seconds (comma-separated)"
         }
       }
@@ -56,6 +58,7 @@
           "grace_seconds": "Only patch if last_changed is younger than (seconds)",
           "snapshot_interval": "Periodic snapshot every (seconds, 0 = off)",
           "restore_last_updated": "Also restore last_updated",
+          "restore_last_triggered": "Also restore automation/script last_triggered",
           "retry_delays": "Retry delays in seconds (comma-separated)"
         }
       }
@@ -69,6 +72,10 @@
     "restore_now": {
       "name": "Restore now",
       "description": "Runs a restore pass immediately and writes back the real last_changed for all currently fresh entities."
+    },
+    "verify": {
+      "name": "Verify",
+      "description": "Compares the live last_changed of every currently watched entity against the value derived from the recorder/store, without patching anything. Returns any mismatches found - useful for diagnosing \"the value looks wrong\" reports."
     }
   },
   "issues": {
@@ -83,6 +90,9 @@
     },
     "restore_failed": {
       "message": "The restore pass failed. Check the log for details."
+    },
+    "verify_failed": {
+      "message": "The verify pass failed. Check the log for details."
     }
   }
 }

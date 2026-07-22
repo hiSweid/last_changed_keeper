@@ -10,10 +10,29 @@ CONF_EXCLUDE = "exclude"
 CONF_GRACE = "grace_seconds"
 CONF_RESTORE_LAST_UPDATED = "restore_last_updated"
 CONF_RETRY_DELAYS = "retry_delays"
+CONF_RESTORE_LAST_TRIGGERED = "restore_last_triggered"
 
 DEFAULT_RESTORE_LAST_UPDATED = False
+DEFAULT_RESTORE_LAST_TRIGGERED = True
 
 SERVICE_RESTORE_NOW = "restore_now"
+SERVICE_VERIFY = "verify"
+
+# Domains with their own separate last_triggered patch path: it's an
+# attribute (not the state value), populated from a dedicated recorder
+# lookup rather than the last_changed/state-value logic above.
+LAST_TRIGGERED_DOMAINS = ("automation", "script")
+ATTR_LAST_TRIGGERED = "last_triggered"
+
+# Debounce for the incremental runtime store (see async_write_snapshot /
+# _on_target_state_changed): coalesces bursts of real value changes (e.g. a
+# "chatty" entity, or a scene turning off many lights at once) into a single
+# store write instead of one per change.
+INCREMENTAL_DEBOUNCE_SECONDS = 8
+# Hard upper bound on how long a continuously-dirty debounce can be pushed
+# back before it is flushed anyway, so a permanently chatty entity can never
+# fully starve the incremental store.
+INCREMENTAL_MAX_WAIT_SECONDS = 30
 
 EVENT_RESTORED = f"{DOMAIN}_restored"
 

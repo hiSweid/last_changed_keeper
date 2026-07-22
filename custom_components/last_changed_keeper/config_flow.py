@@ -21,11 +21,13 @@ from .const import (
     CONF_EXCLUDE,
     CONF_GRACE,
     CONF_LABELS,
+    CONF_RESTORE_LAST_TRIGGERED,
     CONF_RESTORE_LAST_UPDATED,
     CONF_RETRY_DELAYS,
     CONF_SNAPSHOT_INTERVAL,
     DEFAULT_DOMAINS,
     DEFAULT_GRACE,
+    DEFAULT_RESTORE_LAST_TRIGGERED,
     DEFAULT_RESTORE_LAST_UPDATED,
     DEFAULT_SNAPSHOT_INTERVAL,
     DOMAIN,
@@ -95,6 +97,12 @@ def _build_schema(hass: HomeAssistant, defaults: dict[str, Any]) -> vol.Schema:
                 CONF_RESTORE_LAST_UPDATED,
                 default=defaults.get(
                     CONF_RESTORE_LAST_UPDATED, DEFAULT_RESTORE_LAST_UPDATED
+                ),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_RESTORE_LAST_TRIGGERED,
+                default=defaults.get(
+                    CONF_RESTORE_LAST_TRIGGERED, DEFAULT_RESTORE_LAST_TRIGGERED
                 ),
             ): selector.BooleanSelector(),
             vol.Optional(

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Last Changed Keeper",
-        "description": "Restaura la hora real de «último cambio» de las entidades seleccionadas desde el recorder tras un reinicio. Actúa directamente sobre la propia entidad. La selección actual abarca {count} entidades.",
+        "description": "Restaura la hora real de «último cambio» de las entidades seleccionadas desde el recorder tras un reinicio. Actúa directamente sobre la propia entidad. La selección actual abarca {count} entidades.",
         "data": {
           "domains": "Dominios",
           "entities": "Entidades individuales adicionales",
@@ -13,6 +13,7 @@
           "grace_seconds": "Aplicar solo si last_changed es más reciente que (segundos)",
           "snapshot_interval": "Instantánea periódica cada (segundos, 0 = desactivado)",
           "restore_last_updated": "Restaurar también last_updated",
+          "restore_last_triggered": "Restaurar también last_triggered de automatizaciones/scripts",
           "retry_delays": "Retardos de reintento en segundos (separados por comas)"
         }
       },
@@ -28,6 +29,7 @@
           "grace_seconds": "Aplicar solo si last_changed es más reciente que (segundos)",
           "snapshot_interval": "Instantánea periódica cada (segundos, 0 = desactivado)",
           "restore_last_updated": "Restaurar también last_updated",
+          "restore_last_triggered": "Restaurar también last_triggered de automatizaciones/scripts",
           "retry_delays": "Retardos de reintento en segundos (separados por comas)"
         }
       }
@@ -56,6 +58,7 @@
           "grace_seconds": "Aplicar solo si last_changed es más reciente que (segundos)",
           "snapshot_interval": "Instantánea periódica cada (segundos, 0 = desactivado)",
           "restore_last_updated": "Restaurar también last_updated",
+          "restore_last_triggered": "Restaurar también last_triggered de automatizaciones/scripts",
           "retry_delays": "Retardos de reintento en segundos (separados por comas)"
         }
       }
@@ -69,6 +72,10 @@
     "restore_now": {
       "name": "Restaurar ahora",
       "description": "Ejecuta una pasada de restauración inmediatamente y reescribe el last_changed real de todas las entidades actualmente actualizadas."
+    },
+    "verify": {
+      "name": "Verificar",
+      "description": "Compara el last_changed actual de cada entidad vigilada con el valor «real» determinado a partir del recorder/almacén, sin aplicar ningún cambio. Devuelve las discrepancias encontradas; útil para diagnosticar avisos de «el valor no es correcto»."
     }
   },
   "issues": {
@@ -83,6 +90,9 @@
     },
     "restore_failed": {
       "message": "La pasada de restauración falló. Consulta el registro para más detalles."
+    },
+    "verify_failed": {
+      "message": "La verificación falló. Consulta el registro para más detalles."
     }
   }
 }

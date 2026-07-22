@@ -13,6 +13,7 @@
           "grace_seconds": "Aktualizuj tylko, jeśli last_changed jest młodsze niż (sekundy)",
           "snapshot_interval": "Okresowa migawka co (sekundy, 0 = wyłączone)",
           "restore_last_updated": "Przywróć także last_updated",
+          "restore_last_triggered": "Przywróć także last_triggered automatyzacji/skryptów",
           "retry_delays": "Opóźnienia ponawiania w sekundach (oddzielone przecinkami)"
         }
       },
@@ -28,6 +29,7 @@
           "grace_seconds": "Aktualizuj tylko, jeśli last_changed jest młodsze niż (sekundy)",
           "snapshot_interval": "Okresowa migawka co (sekundy, 0 = wyłączone)",
           "restore_last_updated": "Przywróć także last_updated",
+          "restore_last_triggered": "Przywróć także last_triggered automatyzacji/skryptów",
           "retry_delays": "Opóźnienia ponawiania w sekundach (oddzielone przecinkami)"
         }
       }
@@ -56,6 +58,7 @@
           "grace_seconds": "Aktualizuj tylko, jeśli last_changed jest młodsze niż (sekundy)",
           "snapshot_interval": "Okresowa migawka co (sekundy, 0 = wyłączone)",
           "restore_last_updated": "Przywróć także last_updated",
+          "restore_last_triggered": "Przywróć także last_triggered automatyzacji/skryptów",
           "retry_delays": "Opóźnienia ponawiania w sekundach (oddzielone przecinkami)"
         }
       }
@@ -69,6 +72,10 @@
     "restore_now": {
       "name": "Przywróć teraz",
       "description": "Natychmiast wykonuje przebieg przywracania i ponownie zapisuje rzeczywiste last_changed dla wszystkich aktualnie świeżych encji."
+    },
+    "verify": {
+      "name": "Zweryfikuj",
+      "description": "Porównuje bieżące last_changed każdej monitorowanej encji z wartością „rzeczywistą” wyznaczoną na podstawie rejestratora/magazynu, bez wprowadzania jakichkolwiek zmian. Zwraca znalezione rozbieżności — przydatne przy diagnozowaniu zgłoszeń „wartość się nie zgadza”."
     }
   },
   "issues": {
@@ -83,6 +90,9 @@
     },
     "restore_failed": {
       "message": "Przebieg przywracania nie powiódł się. Sprawdź dziennik, aby uzyskać szczegóły."
+    },
+    "verify_failed": {
+      "message": "Weryfikacja nie powiodła się. Sprawdź dziennik, aby uzyskać szczegóły."
     }
   }
 }

@@ -2,6 +2,55 @@
 
 All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0] — 2026-07-22
+### Added
+- **Re-patch on runtime re-registration.** Previously, only a full HA restart
+  was recognised as the "reset to now" event. A persistent, entry-lifetime
+  listener (independent of the boot-time pending/listener machinery) now
+  also catches an already-watched entity being fully re-created afterwards
+  — its owning config entry reloading, a Zigbee/Z-Wave device rejoining, or
+  the entity briefly disappearing and reappearing — and re-patches just
+  that one entity with a targeted per-entity query, respecting the same
+  grace window and retry delays as the boot pass, without slowing down boot
+  or re-running the full bulk query.
+- **`last_triggered` restoration for automations/scripts.** A second, clearly
+  separate patch path (own recorder read, own apply mechanism, since
+  `last_triggered` is an attribute, not the state value) restores it for
+  `automation.*`/`script.*` entities when Home Assistant's own restore
+  mechanism didn't (crash, purged restore-state cache, long outage). New
+  **restore automation/script `last_triggered`** option (default: on).
+- **Incremental runtime store.** Every genuine value change of a watched
+  entity is now debounced (~8 s, capped at 30 s under continuous chatter)
+  into the same store used for the periodic/shutdown snapshot, instead of
+  only updating it every `snapshot_interval` seconds or at shutdown. Only
+  one entry per entity is kept (merged, not appended), so this does not
+  grow unbounded. `_resolve()` now prefers this store's value over an
+  otherwise-definitive bulk result when it holds a newer, still-usable
+  timestamp for the same value (e.g. recorder commit lag).
+- **`last_changed_keeper.verify` service** (`supports_response: only`):
+  compares the live `last_changed` of every currently watched entity against
+  the recorder/store-derived real value and returns any mismatches
+  (`entity_id`, `live_last_changed`, `expected_last_changed`,
+  `diff_seconds`) without patching anything — for diagnosing "the value
+  looks wrong" reports.
+- Swedish (`sv`), Czech (`cs`), Norwegian Bokmål (`nb`) and Danish (`da`)
+  translations, following the existing 7 non-English languages.
+- `icons.json` for the `restore_now`/`verify` services.
+### Changed
+- `quality_scale` raised to **gold**. See the README's "Quality scale"
+  section for the honest per-rule breakdown — several gold rules
+  (`devices`, `entity-category`, `entity-translations`, `discovery`,
+  `stale-devices`, ...) don't apply, since this integration has no entities
+  or devices of its own.
+- README: added "Use cases", "How data is refreshed", "Examples" and
+  "Troubleshooting" sections; documented the last_changed/last_triggered
+  distinction and the runtime re-registration/incremental-store behavior.
+### Tests
+- Added `tests/test_reregistration.py`, `tests/test_last_triggered.py`,
+  `tests/test_incremental_store.py` and `tests/test_verify_service.py`
+  (28 new tests), plus a config-flow schema test for the new
+  `restore_last_triggered` field.
+
 ## [0.6.0] — 2026-07-14
 ### Added
 - **Label and area targeting.** Selecting a label or area now cascades

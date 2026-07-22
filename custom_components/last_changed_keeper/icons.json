@@ -1,0 +1,10 @@
+{
+  "services": {
+    "restore_now": {
+      "service": "mdi:history"
+    },
+    "verify": {
+      "service": "mdi:clipboard-check-outline"
+    }
+  }
+}
