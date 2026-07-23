@@ -29,6 +29,14 @@ are caught by a state listener and re-runs at +30/90/180 s. An entity is only
 touched while it's "fresh" (grace, default 1800 s), so real usage isn't
 overwritten. Cost is near zero: a short burst at boot, then idle.
 
+Backdating only happens if the value is unchanged: the recorder walk looks
+for the contiguous run of the entity's *current* (post-boot) value and stops
+as soon as it hits a different one. So if a door unlocks *during* the
+restart, its `last_changed` is **not** backdated to before the restart — it
+keeps the time the new "unlocked" state was actually detected, exactly as if
+this integration weren't installed. Only an entity whose value genuinely
+didn't change across the restart gets its old timestamp restored.
+
 Two further mechanisms run for the lifetime of the integration, not just at
 boot (see [Use cases](#use-cases) below for why):
 
