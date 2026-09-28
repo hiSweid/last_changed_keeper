@@ -149,6 +149,11 @@ async def test_user_flow_creates_entry(
     assert result2["type"] == FlowResultType.CREATE_ENTRY
     assert result2["data"][CONF_DOMAINS] == ["light"]
 
+    # The completed entry dispatched its own boot pass via
+    # hass.async_create_task (fire-and-forget) - drain it before the test
+    # ends, or it races the hass/recorder fixture teardown that follows.
+    await hass.async_block_till_done()
+
 
 async def test_single_config_entry_aborts_second_flow(
     recorder_mock, enable_custom_integrations, hass: HomeAssistant
@@ -168,6 +173,11 @@ async def test_single_config_entry_aborts_second_flow(
     # manifest.json sets single_config_entry: true, which aborts before our
     # own _abort_if_unique_id_configured() unique-id check even runs.
     assert second["reason"] == "single_instance_allowed"
+
+    # The first flow's completed entry dispatched its own boot pass via
+    # hass.async_create_task (fire-and-forget) - drain it before the test
+    # ends, or it races the hass/recorder fixture teardown that follows.
+    await hass.async_block_till_done()
 
 
 async def test_options_flow_updates_selection(
@@ -193,6 +203,12 @@ async def test_options_flow_updates_selection(
     assert result2["type"] == FlowResultType.CREATE_ENTRY
     assert result2["data"][CONF_DOMAINS] == ["switch"]
 
+    # The initial entry creation and the options-flow save each dispatched
+    # their own boot pass via hass.async_create_task (fire-and-forget) -
+    # drain them before the test ends, or one races the hass/recorder
+    # fixture teardown that follows.
+    await hass.async_block_till_done()
+
 
 async def test_options_flow_empty_selection_shows_error(
     recorder_mock, enable_custom_integrations, hass: HomeAssistant
@@ -213,6 +229,11 @@ async def test_options_flow_empty_selection_shows_error(
     )
     assert result2["type"] == FlowResultType.FORM
     assert result2["errors"] == {"base": "empty_selection"}
+
+    # The initial entry creation dispatched its own boot pass via
+    # hass.async_create_task (fire-and-forget) - drain it before the test
+    # ends, or it races the hass/recorder fixture teardown that follows.
+    await hass.async_block_till_done()
 
 
 # ----- Regression: reconfigure must not be shadowed by stale options -------
@@ -262,6 +283,13 @@ async def test_reconfigure_after_options_flow_actually_takes_effect(
     assert merged[CONF_GRACE] == 300
     assert merged[CONF_DOMAINS] == ["switch"]
     assert entry.options == {}
+
+    # Each reload above dispatches its own boot pass via
+    # hass.async_create_task (fire-and-forget - setup doesn't block on the
+    # full resolve completing), and none of it is awaited above. Drain it
+    # before the test ends, or it races the hass/recorder fixture teardown
+    # that immediately follows.
+    await hass.async_block_till_done()
 
 
 # ----- Regression: a stored domain without live states stays selectable ----

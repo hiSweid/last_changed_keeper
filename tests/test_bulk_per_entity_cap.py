@@ -259,3 +259,67 @@ async def test_bulk_window_still_applies(recorder_mock, hass: HomeAssistant) -> 
 
     rows = await _run_bulk(_make_job(hass), "switch.old")
     assert rows == []
+
+
+async def test_recreation_rows_do_not_consume_cap_slots(
+    recorder_mock, hass: HomeAssistant
+) -> None:
+    """Field-diagnosed regression: an entity repeatedly torn down and
+    recreated with an UNCHANGED value (Entity.async_remove() then
+    async_set() with the same value - an ordinary restart, a
+    config-entry reload, or a cascade from an unrelated integration's own
+    instability) must not have those recreation rows count toward
+    BULK_PER_ENTITY_LIMIT. Left uncapped-on-transitions, enough
+    recreation cycles push the genuine earlier transition out of the
+    capped window entirely, and the resolve walk finds no differing
+    value at all (bounded=False) instead of the true, stable origin."""
+    now = dt_util.utcnow()
+    genuine_change_at = now - timedelta(days=5)
+
+    with freeze_time(genuine_change_at - timedelta(minutes=1)):
+        hass.states.async_set("binary_sensor.flaky_device", "off")
+    with freeze_time(genuine_change_at):
+        hass.states.async_set("binary_sensor.flaky_device", "on")
+
+    # More recreation cycles than the cap - without dedup, these alone
+    # would fill (and overflow) BULK_PER_ENTITY_LIMIT, pushing the
+    # genuine transition above out of the capped window.
+    recreate_base = now - timedelta(hours=2)
+    for i in range(BULK_PER_ENTITY_LIMIT + 20):
+        with freeze_time(recreate_base + timedelta(seconds=i * 10)):
+            hass.states.async_remove("binary_sensor.flaky_device")
+            hass.states.async_set("binary_sensor.flaky_device", "on")
+    await async_wait_recording_done(hass)
+
+    rows = await _run_bulk(_make_job(hass), "binary_sensor.flaky_device")
+
+    ts, bounded = lck._real_last_changed(rows, "on")
+    assert bounded, "recreation noise crowded out the genuine transition"
+    assert abs((ts - genuine_change_at).total_seconds()) < 1
+
+
+async def test_genuine_alternating_transitions_are_not_collapsed(
+    recorder_mock, hass: HomeAssistant
+) -> None:
+    """The dedup step must only remove true duplicates - a real
+    back-and-forth pattern (more transitions than the cap) still fills
+    the cap with genuine transitions, same as before this change."""
+    now = dt_util.utcnow()
+    total = BULK_PER_ENTITY_LIMIT + 25
+    base = now - timedelta(days=2)
+    for i in range(total):
+        with freeze_time(base + timedelta(minutes=i)):
+            hass.states.async_set(
+                "binary_sensor.alternator", "on" if i % 2 == 0 else "off"
+            )
+    await async_wait_recording_done(hass)
+
+    rows = await _run_bulk(_make_job(hass), "binary_sensor.alternator")
+
+    assert len(rows) == BULK_PER_ENTITY_LIMIT
+    # The newest `total` writes alternate on/off; the cap must keep the
+    # newest BULK_PER_ENTITY_LIMIT of them (values from index 25 on), not
+    # collapse the alternation away.
+    oldest_kept = min(rows, key=lambda r: r.last_updated)
+    expected_oldest = base + timedelta(minutes=total - BULK_PER_ENTITY_LIMIT)
+    assert abs((oldest_kept.last_updated - expected_oldest).total_seconds()) < 1

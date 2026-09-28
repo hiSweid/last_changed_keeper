@@ -15,12 +15,12 @@ BASE = datetime(2026, 6, 23, 4, 0, tzinfo=UTC)
 
 @dataclass
 class FakeState:
-    state: str
+    state: str | None
     last_changed: datetime
     last_updated: datetime
 
 
-def s(value: str, minutes: int) -> FakeState:
+def s(value: str | None, minutes: int) -> FakeState:
     ts = BASE + timedelta(minutes=minutes)
     return FakeState(value, ts, ts)
 
@@ -109,3 +109,44 @@ def test_current_state_on():
     ts, bounded = _real_last_changed(history, "on")
     assert bounded is True
     assert ts == s("on", 51).last_changed
+
+
+def test_removal_row_does_not_bound_the_run():
+    """A None-state row (entity removal - e.g. Entity.async_remove() on a
+    graceful restart or config-entry reload) proves the entity briefly
+    didn't exist, not that its value changed - so, like unavailable/
+    unknown, it is transparent to the walk: it neither extends the run nor
+    bounds it. With no genuinely differing value anywhere in this history,
+    the result is unbounded (best effort), landing on the oldest same-
+    value row available rather than treating the removal row as if it
+    were a real boundary."""
+    history = [s("on", 40), s(None, 51), s("on", 52)]
+    ts, bounded = _real_last_changed(history, "on")
+    assert bounded is False
+    assert ts == s("on", 40).last_changed
+
+
+def test_removal_rows_are_skipped_across_several_restarts():
+    """Field-diagnosed regression: an entity that survives several
+    restarts without a genuine value change accumulates one removal row
+    per restart (each immediately followed by a same-value recreation
+    row). None of them may be mistaken for the genuine boundary, however
+    many there are - the walk must reach all the way back to the actual
+    differing value."""
+    history = [
+        s("off", 10),
+        s("on", 20),              # real last change
+        s(None, 60), s("on", 61),     # restart 1 artifact
+        s(None, 120), s("on", 121),   # restart 2 artifact
+        s(None, 180), s("on", 181),   # restart 3 artifact (current value)
+    ]
+    ts, bounded = _real_last_changed(history, "on")
+    assert bounded is True
+    assert ts == s("on", 20).last_changed
+
+
+def test_genuine_value_bound():
+    history = [s("on", 40), s("off", 51), s("on", 52)]
+    ts, bounded = _real_last_changed(history, "on")
+    assert bounded is True
+    assert ts == s("on", 52).last_changed

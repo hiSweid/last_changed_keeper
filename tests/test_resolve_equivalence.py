@@ -70,17 +70,16 @@ def _simulate_boot_reset(hass: HomeAssistant, entity_id: str, value: str) -> Sta
     async_remove() is the more obvious way to clear it, and is what
     test_reregistration.py uses to simulate a *different* scenario (a
     runtime re-registration, where the recorder genuinely is running and
-    does log the disappearance). Using it here would be wrong: it fires a
-    real state_changed event that the recorder logs as a state=None row,
-    which _real_last_changed's INVALID_STATES filter does not exclude
-    (only "unavailable"/"unknown" are) - so that spurious row would sit
-    between the true history and the reset, look like a genuine differing
-    value, and cut the detected run off at the reset instead of at the real
-    historical change. A real restart never produces that row: the
-    recorder isn't running during the gap, so there's no event to log -
-    just a temporal gap in the data, which _real_last_changed already
-    handles correctly (see test_real_last_changed.py's restart-recovery
-    tests).
+    does log the disappearance). It isn't needed here: a real restart
+    never produces a recorder row for the gap at all (the recorder isn't
+    running during it, so there's no event to log) - just a temporal gap
+    in the data, which _real_last_changed already handles correctly (see
+    test_real_last_changed.py's restart-recovery tests). A state=None row
+    from async_remove() would also be fine to use here now - it's
+    transparent to _real_last_changed's walk the same way unavailable/
+    unknown are (see test_real_last_changed.py's removal-row tests) - but
+    popping the state machine's dict entry directly is simpler and closer
+    to what a genuine restart does.
     """
     hass.states._states_data.pop(entity_id, None)
     hass.states.async_set(entity_id, value)

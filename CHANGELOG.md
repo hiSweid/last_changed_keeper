@@ -21,6 +21,204 @@ All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.
   a config-flow reloading method has been deprecated since HA Core 2026.6
   and turns into a hard error from 2026.12 onward.
 
+## [0.9.15] — 2026-09-14
+### Fixed
+- **An entity torn down and recreated with an unchanged value, repeatedly,
+  could get a different "true" `last_changed` answer depending on when
+  you asked — sometimes falling back to no answer at all.** The bulk
+  query's per-entity row cap (`BULK_PER_ENTITY_LIMIT`) counted every row
+  that passed its "genuine value change" filter, including a same-value
+  recreation row written right after a removal (v0.9.14 stopped the
+  removal row itself from being trusted as a boundary, but the
+  recreation row immediately following it still consumed a cap slot).
+  `_real_last_changed`'s walk already handled a same-value row correctly
+  — it just extends the run backward — so this was never a walk-logic
+  bug; it was purely that the cap could be spent entirely on
+  non-informative rows before the walk ever saw them.
+
+  Field-diagnosed on the same installation: `binary_sensor.echo_dot_bedroom`
+  and dozens of entities across unrelated integrations (Echo devices,
+  UniFi trackers, `magic_areas` aggregates) get torn down and recreated
+  in mass bursts every few hours, driven by Alexa Devices' and UniFi
+  Network's own documented reliability issues (session refresh failures,
+  websocket disconnects) cascading through `magic_areas`'s area
+  aggregation. `_resolve()` computed two different answers for the same,
+  apparently-unchanged entity at two points in a single 38-hour session
+  with no restart in between — an inconsistency that can only get worse
+  the longer an install goes without a restart, since every reload cycle
+  eats another cap slot.
+
+  Fixed by deduplicating consecutive same-value rows in `_bulk_query`
+  before applying the cap (a `LAG()`-based "only count genuine
+  transitions" pass, ahead of the existing `row_number()` ranking) —
+  the cap now always represents up to `BULK_PER_ENTITY_LIMIT` genuine
+  transitions, regardless of how many teardown/recreate cycles happened
+  in between. This is deliberately general-purpose: it isn't specific to
+  Alexa Devices or UniFi Network, and helps against any integration's
+  reload behavior having the same effect. The equivalent gap in the
+  deep-query fallback path (`_resolve()` step 3, via HA core's own
+  `get_last_state_changes` — which applies no filtering at all before
+  its own cap, not even for attribute-only or unavailable rows) is not
+  addressed here: fixing it would mean replacing that call with a custom
+  query, which is a larger undertaking than this release scopes to, and
+  there's no field evidence yet that path has caused a wrong answer.
+
+## [0.9.14] — 2026-09-12
+### Fixed
+- **An entity that survived several restarts without a genuine value
+  change could get permanently, confidently patched to an intermediate
+  restart's own artifact instead of its true origin.** `Entity.
+  async_remove()` writes a `None`-state row to the recorder on every
+  graceful entity teardown — an ordinary graceful HA restart as well as a
+  config-entry reload — and `_real_last_changed` let such a row bound a
+  run just like a genuine differing value. 0.9.12's `bounded_by_removal`
+  tried to avoid trusting a *too-recent* instance of this, but measured
+  "too recent" against the entity's own current `live.last_changed` —
+  which is itself whatever the last resolve wrote, so the guard only ever
+  protected the single most-recently-written removal row. Any older one
+  an entity accumulated over multiple restarts got trusted as if it were
+  a real transition, `_apply()`'d, and the entity marked `_confirmed` —
+  after which, per this integration's own `_confirmed`-means-never-
+  revisited design, nothing ever re-checked it again.
+
+  Field-diagnosed on the same installation: a cluster of 42 entities
+  spanning many unrelated integrations (Echo devices, UniFi switches,
+  `magic_areas` aggregates, device trackers) were all patched to a stale
+  restart timestamp from days earlier during one boot pass, and never
+  touched again — a fresh `verify` call hours later independently
+  recomputed the true, still-earlier origin for the same entities. The
+  same shape recurred from an even earlier restart for a different pair
+  of entities, confirming it as a general, recurring bug rather than a
+  one-off.
+
+  Fixed by treating a removal row exactly like `unavailable`/`unknown`:
+  transparent to `_real_last_changed`'s walk, regardless of age — it
+  neither extends a run nor bounds one, so the walk simply continues past
+  it looking for a row where the value genuinely differs. This removes
+  `bounded_by_removal` and its age heuristic entirely rather than
+  patching it further; the one thing that heuristic partly preserved —
+  not trusting history from before an entity_id was reused for a
+  genuinely different device — isn't a scenario this integration needs to
+  guard against. `_bulk_query` also stops fetching removal rows in the
+  first place, since they can no longer bound anything: on an install
+  that's been through several restarts recently, every one of those rows
+  was previously wasting a slot in the per-entity row cap
+  (`BULK_PER_ENTITY_LIMIT`) that could otherwise have reached a genuine
+  value change further back.
+
+## [0.9.13] — 2026-09-08
+### Fixed
+- **0.9.12's recorder-commit-lag protection could itself stall real
+  sensor history for hours on a busy install.** `_wait_for_recorder_commit()`
+  (added in 0.9.12) is called before every recorder history query this
+  integration issues — one per bulk batch, one per still-unresolved
+  entity's deep/`last_triggered` query — in a plain sequential loop with no
+  pacing of its own. `Recorder.async_get_commit_future()` is only free when
+  the write queue happens to already be empty; on a non-empty queue it
+  enqueues a `SynchronizeTask`, and every `RecorderTask` defaults to
+  `commit_before=True`, so it forces an *early* commit rather than letting
+  the recorder batch writes over its own ~5-second commit interval. Calling
+  this unconditionally before every one of potentially hundreds to
+  thousands of sequential queries (worse on a "track all entities" install,
+  and repeated by the periodic sweep every 5 minutes for anything still
+  `_unconfirmed`) turned that efficient batched commit behaviour into one
+  forced commit per query.
+
+  Field-reported after upgrading: long blanks (same value, no updates, for
+  several hours) in sensor value graphs, no related log messages, and the
+  problem stopped when the integration was disabled. The install's log
+  showed the "recorder commit still pending after 10s" DEBUG line
+  repeatedly — the wait wasn't just adding overhead, it was a
+  self-reinforcing feedback loop: each stalled forced-commit attempt added
+  more load to an already-overloaded recorder, making the next one more
+  likely to stall too, at wall-clock scale enough to stop real sensor
+  history from being recorded at all.
+
+  Fixed by coalescing: `_wait_for_recorder_commit()` now only genuinely
+  checks the recorder at most once per
+  `RECORDER_COMMIT_SYNC_MIN_INTERVAL_SECONDS` (new constant, default 2s,
+  tracked via `self._last_commit_sync_monotonic`) — a call within that
+  window returns immediately without touching the recorder at all. This
+  caps how often this integration can force an early commit, independent
+  of how many queries a given pass issues, while still catching commit lag
+  on the same timescale as 0.9.12's original field evidence (a
+  3-second-old transition).
+
+## [0.9.12] — 2026-09-03
+### Fixed
+- **A recorder history query could miss a state change that had already
+  happened — visible via `hass.states.get()` — but hadn't been committed
+  to the database yet, and `_resolve()`'s "bounded" result is trusted
+  unconditionally the instant it finds any older, differently-valued row,
+  with no protection against the query simply having run ahead of the
+  recorder's own write queue.** Recorder writes are queued and committed
+  asynchronously rather than synchronously with the in-memory state
+  change (ordinary commit lag), so a query issued immediately after a
+  genuine transition can silently see a stale, older boundary instead —
+  wrong, but indistinguishable from a correct bounded result at the call
+  site. An entity hit by this at boot gets `_apply()`'d once, marked
+  `_confirmed`, and — since only `_unconfirmed` entities are ever
+  revisited by the periodic sweep — sits wrong until the next full
+  restart, with nothing to retry it.
+
+  Field-diagnosed on the same installation after 0.9.9 (which fixed the
+  two prior bugs cleanly — 685 mismatches down to 92 at first post-deploy
+  `verify`): a `verify` dump six hours later, no restart in between, had
+  crept back up to 117. Cross-referencing that dump against the install's
+  own log found a real door sensor whose `verify`-computed
+  `expected_last_changed` matched a transition from the previous evening,
+  even though the door had genuinely, physically reopened and closed
+  again 3 seconds before the query that produced that answer — proof the
+  query ran ahead of the recorder's commit, not that the door was
+  actually still in its earlier state. The same log also showed most of
+  that 117 was a separate, non-bug artifact: entities being correctly,
+  repeatedly re-patched throughout the run (one 73 times) that `verify`
+  still reported as mismatched simply because `verify`'s own multi-minute
+  scan reads each entity's live value at whatever point it reaches it,
+  not atomically at report time — this fix, sharing the same query path,
+  also reduces that false-positive noise.
+
+  Adds `_wait_for_recorder_commit()`, called before every recorder
+  history query this integration issues (each bulk batch, each per-entity
+  deep/`last_triggered` query) — the same `Recorder.async_get_commit_
+  future()` mechanism HA core's own live-history websocket API uses
+  before querying, bounded by a short `RECORDER_COMMIT_WAIT_TIMEOUT_
+  SECONDS` timeout (distinct from and much shorter than 0.9.9's boot-time
+  `RECORDER_READY_TIMEOUT_SECONDS`, since this guards an ordinary
+  sub-second-to-few-second race that can be hit many times within a
+  single pass, not a one-time migration gate). Costs nothing in the
+  common case: the write queue is usually already empty, and the call
+  returns immediately when so.
+
+- **A fast re-registration could permanently block `_resolve()` from ever
+  falling through to the snapshot, making the entity worse off than before
+  the fix above.** `Entity.async_remove()` — called on every config-entry
+  reload or device rejoin, exactly the case the re-registration listener
+  exists to fix — makes the recorder write a `None`-state row for the
+  removal, and `_real_last_changed` already (correctly, deliberately)
+  treats that row as a genuine boundary the same as any differing value.
+  But `_resolve()`'s bounded-result trust doesn't distinguish *why* a
+  result is bounded: a boundary that's too recent to clear the margin is
+  hard-blocked (`return None`) on the assumption that a genuine value
+  transition was proven, so no other source may override it. A removal
+  boundary proves no such thing — it only proves the entity briefly didn't
+  exist — yet a fast reload (well under `MARGIN_SECONDS`) was hitting the
+  same hard block, and since the bulk history behind that block never
+  changes, every later retry (`RETRY_DELAYS`, the periodic sweep)
+  recomputed the identical answer forever: permanently `_unconfirmed`,
+  never reaching the snapshot fallback that would otherwise have restored
+  it correctly.
+
+  Found while shipping the fix above: making history queries commit-lag-
+  safe means the bulk query now reliably sees the removal row it used to
+  sometimes race past, which is what turned this from a latent gap into
+  two failing regression tests. `_real_last_changed` now reports *why* a
+  result is bounded (`bounded_by_removal`); `_resolve` still trusts a
+  too-recent genuine value transition unconditionally (that part was
+  always correct), but treats a too-recent removal boundary as
+  inconclusive and falls through to the snapshot/deep/best-effort sources
+  below instead.
+
 ## [0.9.9] — 2026-08-30
 ### Fixed
 - **The periodic sweep added in 0.9.8 excluded anything currently in

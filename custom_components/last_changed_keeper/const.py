@@ -40,6 +40,45 @@ DEFAULT_ALL_ENTITIES = True
 # wait would hang the boot pass forever instead.
 RECORDER_READY_TIMEOUT_SECONDS = 3600
 
+# Bound on how long a single history query waits for the recorder's own
+# write queue to flush (see _wait_for_recorder_commit) before querying
+# anyway. Kept short, unlike RECORDER_READY_TIMEOUT_SECONDS: this guards
+# a per-query race (ordinary commit lag, normally sub-second, a few
+# seconds under real load - see the alert2.back_door_open field evidence,
+# a 3-second gap) rather than a one-time boot gate, and this wait can be
+# hit many times in a single pass (once per bulk batch, once per deep
+# query) - a long per-call timeout would risk compounding into a much
+# longer pass under sustained load instead of just occasionally, briefly
+# querying with stale data.
+RECORDER_COMMIT_WAIT_TIMEOUT_SECONDS = 10
+
+# Minimum spacing (seconds) between actual recorder-commit waits (see
+# _wait_for_recorder_commit) - a second call within this window of a prior
+# one returns immediately without re-checking the recorder at all. This
+# exists because every wait that finds the queue non-empty forces the
+# recorder to commit early (Recorder.async_get_commit_future enqueues a
+# SynchronizeTask, and every RecorderTask defaults to commit_before=True) -
+# fine for one query, but this integration issues its recorder queries
+# sequentially, one at a time, in a plain loop (one per bulk batch, and one
+# per still-unresolved entity's deep/last_triggered query), so an
+# unthrottled call before every single one turns the recorder's normal,
+# efficient ~5s-batched commit behaviour (see recorder's own
+# DEFAULT_COMMIT_INTERVAL) into a forced commit per query instead. On a
+# large "track all entities" install (thousands of candidates, hundreds
+# still unresolved and re-tried by the periodic sweep every 300s) this
+# was field-observed to make the recorder fall so far behind under
+# sustained real load that RECORDER_COMMIT_WAIT_TIMEOUT_SECONDS itself
+# was repeatedly hit (the "commit still pending after 10s" warning
+# appearing over and over) - a feedback loop, since each forced-but-stalled
+# commit attempt only adds more load to an already-overloaded recorder -
+# and, at wall-clock scale, hours of sensor history simply stopped being
+# recorded. Coalescing to at most one genuine wait per this interval caps
+# how often this integration can force an early commit, independent of how
+# many queries a given pass issues, while still catching same-ballpark
+# commit lag (the original bug's field evidence was a 3-second-old
+# transition) well within this window.
+RECORDER_COMMIT_SYNC_MIN_INTERVAL_SECONDS = 2
+
 SERVICE_RESTORE_NOW = "restore_now"
 SERVICE_VERIFY = "verify"
 
