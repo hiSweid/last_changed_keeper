@@ -2,6 +2,18 @@
 
 All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.16] — 2026-10-01
+### Fixed
+- **Initial setup's duplicate-instance guard no longer combines with the
+  config-entry listener.** `async_step_user()` called
+  `_abort_if_unique_id_configured()` with its default `reload_on_update=True`,
+  which is the same listener-plus-reloading-method combination fixed for the
+  reconfigure step in 0.9.10 — just on the other flow path. No observable
+  effect in practice (this step never changes entry data), but it would have
+  started logging deprecation warnings and, from HA Core 2026.12, errored.
+  Set `reload_on_update=False` so only the existing update listener drives
+  reloads.
+
 ## [0.9.11] — 2026-09-12
 ### Added
 - **`button.restore_now`.** Lets users trigger a restore pass from the

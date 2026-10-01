@@ -204,7 +204,7 @@ class LastChangedKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         await self.async_set_unique_id(DOMAIN)
-        self._abort_if_unique_id_configured()
+        self._abort_if_unique_id_configured(reload_on_update=False)
 
         errors: dict[str, str] = {}
         if user_input is not None:
