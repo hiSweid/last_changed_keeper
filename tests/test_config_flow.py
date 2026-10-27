@@ -208,6 +208,8 @@ async def test_options_flow_updates_selection(
     # drain them before the test ends, or one races the hass/recorder
     # fixture teardown that follows.
     await hass.async_block_till_done()
+    # Unloading cancels the retry timers the boot pass armed.
+    assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 async def test_options_flow_empty_selection_shows_error(
@@ -290,6 +292,8 @@ async def test_reconfigure_after_options_flow_actually_takes_effect(
     # before the test ends, or it races the hass/recorder fixture teardown
     # that immediately follows.
     await hass.async_block_till_done()
+    # Unloading cancels the retry timers the boot passes armed.
+    assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 # ----- Regression: a stored domain without live states stays selectable ----

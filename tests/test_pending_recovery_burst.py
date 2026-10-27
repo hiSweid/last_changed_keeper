@@ -87,6 +87,7 @@ async def test_pending_recovery_burst_is_coalesced_into_one_batched_drain(
     # snapshot) -> they stay pending for the scheduled retry pass, same as
     # an unresolvable boot candidate always has.
     assert job._pending == set(entity_ids)
+    job.shutdown()
 
 
 async def test_unresolved_pending_recovery_stays_pending_for_retry_pass(
@@ -112,6 +113,7 @@ async def test_unresolved_pending_recovery_stays_pending_for_retry_pass(
     # or scheduled retry.
     assert "light.slow_zigbee" in job._pending
     assert job._unsub_listener is not None
+    job.shutdown()
 
 
 async def test_pending_recovery_resolves_from_snapshot(
@@ -135,3 +137,23 @@ async def test_pending_recovery_resolves_from_snapshot(
     live = hass.states.get("light.slow_zigbee")
     assert live.last_changed == stale
     assert "light.slow_zigbee" not in job._pending
+
+
+async def test_run_after_shutdown_arms_no_listener_or_retry_timers(
+    recorder_mock, hass: HomeAssistant
+) -> None:
+    """Regression: a boot pass still in flight when its entry is unloaded
+    (an options save or reload right after start) must not arm the
+    pending-recovery listener or the retry timers on the already shut-down
+    job - nothing would ever cancel them."""
+    hass.states.async_set("light.slow_zigbee", "unavailable")
+    await hass.async_block_till_done()
+
+    job = _make_job(hass)
+    job.close()
+    await job.async_run()
+    await hass.async_block_till_done()
+
+    assert job._unsub_listener is None
+    assert job._unsub_timers == []
+    assert job._unsub_target_discovery_timer is None

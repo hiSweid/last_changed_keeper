@@ -2,6 +2,21 @@
 
 All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.18] — 2026-10-27
+### Fixed
+- **A boot pass still running when the entry is unloaded no longer leaves
+  listeners and timers behind.** Saving the options or reloading the
+  integration right after Home Assistant started could unload the entry while
+  its first boot pass was still querying the recorder. When that pass finished
+  it armed the pending-recovery listener and the retry timers on the already
+  stopped job, and nothing ever cancelled them. Unload now goes through
+  `close()`, which also stops a running pass from arming anything afterwards.
+
+### Changed
+- The test suite also runs against Home Assistant 2026.10 (Python 3.14). Tests
+  that start a restore job or load the entry now shut it down again, because the
+  newer test plugin fails on timers left behind.
+
 ## [0.9.17] — 2026-10-27
 ### Added
 - **Dark-theme logo.** The brand folder gains `dark_logo.png` /

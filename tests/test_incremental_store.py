@@ -411,6 +411,7 @@ async def test_reregistration_revokes_confirmed_trust_before_drain_completes(
     await job.async_write_snapshot()
 
     assert "light.kitchen" not in job._snapshot
+    job.shutdown()
 
 
 async def test_resolve_ignores_older_store_value_when_bulk_bounded(

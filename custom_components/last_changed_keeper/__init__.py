@@ -190,7 +190,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LckConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-    entry.async_on_unload(job.shutdown)
+    entry.async_on_unload(job.close)
 
     # Write the snapshot on shutdown (one write, no ongoing cost).
     entry.async_on_unload(
@@ -325,6 +325,7 @@ class _RestoreJob:
         self._startup = dt_util.utcnow()
         self._unsub_listener: CALLBACK_TYPE | None = None
         self._unsub_timers: list[CALLBACK_TYPE] = []
+        self._closed = False
         # Debounce-coalesced burst of pending entities recovering from
         # unavailable during the boot window, drained together via
         # _drain_pending_recovery_burst instead of one recorder query per
@@ -480,6 +481,16 @@ class _RestoreJob:
         )
 
     # ----- Lifecycle -----------------------------------------------------
+
+    @callback
+    def close(self) -> None:
+        """Final shutdown on unload/reload: shutdown() plus a flag that stops
+        a boot pass still in flight from arming new listeners or timers.
+
+        shutdown() alone is also the internal reset at the start of every
+        run, so it can't carry that flag itself."""
+        self._closed = True
+        self.shutdown()
 
     @callback
     def shutdown(self) -> None:
@@ -769,6 +780,8 @@ class _RestoreJob:
 
     async def _async_run_impl(self, *, single_pass: bool = False) -> int:
         """Initial pass (with bulk query). Sets up listener + re-runs."""
+        if self._closed:
+            return 0
         if single_pass and self._pending:
             # A boot pass is still active (listener + retry timers running
             # for entities that came back late). Do an immediate one-off
@@ -915,6 +928,12 @@ class _RestoreJob:
             self._run_active = True
             self._persist_run_stats(new_run=True)
         self._fire_restored_event(final=not self._pending)
+
+        if self._closed:
+            # The entry was unloaded or reloaded while this pass was still
+            # running; arming listeners or timers now would leak them past
+            # close().
+            return patched
 
         if not single_pass and self._verify_after_boot_enabled:
             self._schedule_boot_verify()
