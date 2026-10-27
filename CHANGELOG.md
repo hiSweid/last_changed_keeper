@@ -2,6 +2,18 @@
 
 All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.17] — 2026-10-27
+### Added
+- **Marketplace metadata.** The manifest now declares `categories`
+  (`helpers.store_value`), which the Home Assistant 2026.11 Marketplace uses to
+  browse integrations, and the brand folder gains `dark_logo.png` /
+  `dark_logo@2x.png` so the wordmark stays readable in dark mode.
+
+### Changed
+- The README documents installation through the Marketplace (Home Assistant
+  2026.11 and newer) next to the HACS steps for older versions. HACS installs
+  move to the Marketplace automatically with that update.
+
 ## [0.9.16] — 2026-10-01
 ### Fixed
 - **Initial setup's duplicate-instance guard no longer combines with the
