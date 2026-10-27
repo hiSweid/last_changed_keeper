@@ -1,7 +1,7 @@
 # Last Changed Keeper
 
 [![Validate](https://github.com/hiSweid/last_changed_keeper/actions/workflows/validate.yml/badge.svg)](https://github.com/hiSweid/last_changed_keeper/actions/workflows/validate.yml)
-[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
+[![Marketplace | HACS Default](https://img.shields.io/badge/Marketplace%20%7C%20HACS-Default-41BDF5.svg)](https://www.hacs.xyz/docs/marketplace/)
 ![Version](https://img.shields.io/github/v/release/hiSweid/last_changed_keeper?label=version)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.11%2B-blue.svg)
 
@@ -70,15 +70,27 @@ for when that didn't happen (a crash, a purged restore-state cache, a long
 outage). Controlled by the **restore automation/script `last_triggered`**
 toggle (default: on).
 
-## Installation (HACS)
+## Installation
 
-Last Changed Keeper is part of the **HACS default store** — no custom
-repository needed.
+Last Changed Keeper is in the default catalog — no custom repository needed.
 
-[![Open in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hiSweid&repository=last_changed_keeper&category=integration)
+[![Open in Marketplace / HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hiSweid&repository=last_changed_keeper&category=integration)
 
-1. Click the badge above to open the repository directly in your own HACS,
-   or find it by searching for "Last Changed Keeper" in HACS → Integrations
+### Marketplace (Home Assistant 2026.11 and newer)
+
+1. Click the badge above, or search for "Last Changed Keeper" in
+   *Settings → Marketplace*, and select **Install**. No GitHub account is
+   needed for the catalog.
+2. The setup dialog opens right away. If Home Assistant asks for a restart
+   (a repair under *Settings → System → Repairs*), do that first, then add
+   the integration under *Settings → Devices & Services*.
+
+HACS installs move to the Marketplace automatically when you update to 2026.11.
+
+### HACS (Home Assistant 2026.10 and older)
+
+1. Click the badge above to open the repository in your own HACS, or find
+   it by searching for "Last Changed Keeper" in HACS → Integrations
    → *Explore & download repositories*.
 2. Download it, restart Home Assistant.
 3. *Settings → Devices & Services → Add Integration* → "Last Changed Keeper".
