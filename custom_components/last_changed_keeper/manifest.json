@@ -1,7 +1,6 @@
 {
   "domain": "last_changed_keeper",
   "name": "Last Changed Keeper",
-  "categories": ["helpers.store_value"],
   "codeowners": ["@hiSweid"],
   "config_flow": true,
   "dependencies": ["recorder"],
