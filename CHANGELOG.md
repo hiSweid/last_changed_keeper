@@ -2,6 +2,11 @@
 
 All notable changes. Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.19] — 2026-10-29
+### Added
+- The manifest declares `categories` (`helpers.store_value`), which the Home
+  Assistant 2026.11 Marketplace uses to browse integrations.
+
 ## [0.9.18] — 2026-10-27
 ### Fixed
 - **A boot pass still running when the entry is unloaded no longer leaves
